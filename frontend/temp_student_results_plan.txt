@@ -1,0 +1,30 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Loader2, FileText, CheckCircle, XCircle } from "lucide-react"
+import api from "@/lib/api"
+
+export default function StudentResultsList() {
+    const [loading, setLoading] = useState(true)
+    const [results, setResults] = useState<any[]>([])
+
+    useEffect(() => {
+        const fetchResults = async () => {
+             // We need an endpoint to get all exams I submitted.
+             // Currently we only have `get_student_answers` for specific exam?
+             // Or we need a new endpoint `GET /submissions/me`?
+             // Let's check backend.
+             try {
+                 const res = await api.get("/submissions/me") // Need to implement this
+                 setResults(res.data)
+             } catch (e) {
+                 // Fallback or empty if not implemented
+             } finally {
+                 setLoading(false)
+             }
+        }
+        fetchResults()
+    }, [])
+    
+    // ... render list
+}

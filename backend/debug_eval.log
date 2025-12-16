@@ -1,0 +1,13 @@
+STARTING EVALUATION for IDs: [80, 81, 82, 83, 84]
+Fetched 5 answers from DB.
+Loaded context with 3 materials.
+Calling EvaluationService for Answer 80
+Successfully evaluated Answer 80
+Calling EvaluationService for Answer 81
+Successfully evaluated Answer 81
+Calling EvaluationService for Answer 82
+Successfully evaluated Answer 82
+Calling EvaluationService for Answer 83
+Successfully evaluated Answer 83
+Calling EvaluationService for Answer 84
+Successfully evaluated Answer 84
