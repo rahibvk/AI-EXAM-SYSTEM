@@ -15,7 +15,8 @@ async def create_exam(db: AsyncSession, exam: ExamCreate) -> Exam:
         end_time=exam.end_time,
         duration_minutes=exam.duration_minutes,
         total_marks=exam.total_marks,
-        passing_marks=exam.passing_marks
+        passing_marks=exam.passing_marks,
+        mode=exam.mode
     )
     db.add(db_exam)
     await db.commit()

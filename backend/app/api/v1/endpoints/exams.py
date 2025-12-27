@@ -11,6 +11,23 @@ from app.services.exam_generator import ExamGeneratorService
 
 router = APIRouter()
 
+@router.get("/{exam_id}/plagiarism", response_model=Any)
+async def check_plagiarism(
+    exam_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Generate Plagiarism Report for an exam.
+    Teacher/Admin only.
+    """
+    if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    from app.services.plagiarism_service import PlagiarismService
+    report = await PlagiarismService.analyze_exam(db, exam_id)
+    return report
+
 @router.post("/", response_model=ExamResponse)
 async def create_exam(
     *,
@@ -23,6 +40,7 @@ async def create_exam(
     """
     if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
+
     
     # Verify course belongs to teacher (optional but good security)
     course = await crud_course.get_course(db, course_id=exam_in.course_id)
@@ -44,12 +62,13 @@ async def create_exam(
 @router.post("/generate", response_model=List[QuestionCreate])
 async def generate_exam_questions(
     course_id: int = Body(...),
-    topic: str = Body(None),
+    # topic removed
     difficulty: str = Body("Medium"),
     num_questions: int = Body(5), # Total or fallback
     question_type: str = Body("subjective"), # Fallback
     subjective_count: int = Body(0),
     objective_count: int = Body(0),
+    total_marks: float = Body(100), # Default 100
     material_ids: List[int] = Body(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_active_user),
@@ -64,12 +83,13 @@ async def generate_exam_questions(
         questions = await ExamGeneratorService.generate_questions(
             db=db,
             course_id=course_id,
-            topic=topic,
+            # topic removed
             difficulty=difficulty,
             num_questions=num_questions,
             question_type=question_type,
             subjective_count=subjective_count,
             objective_count=objective_count,
+            total_marks=total_marks,
             material_ids=material_ids
         )
         return questions

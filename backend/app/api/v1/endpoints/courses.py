@@ -1,11 +1,11 @@
 from typing import List, Any
 import os
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.crud import crud_course
-from app.schemas.course import CourseCreate, CourseResponse, CourseMaterialResponse
+from app.schemas.course import CourseCreate, CourseResponse, CourseMaterialResponse, CourseUpdate
 from app.schemas.user import UserResponse
 from app.db.session import get_db
 from app.models.user import User, UserRole
@@ -83,9 +83,49 @@ async def read_course(
         raise HTTPException(status_code=404, detail="Course not found")
     return course
 
+@router.put("/{course_id}", response_model=CourseResponse)
+async def update_course(
+    course_id: int,
+    course_in: CourseUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Update course details.
+    """
+    course = await crud_course.get_course(db, course_id=course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+    if current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN] and course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    course = await crud_course.update_course(db, course_id=course_id, course_in=course_in)
+    return course
+
+@router.delete("/{course_id}", response_model=CourseResponse)
+async def delete_course(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Delete a course.
+    """
+    course = await crud_course.get_course(db, course_id=course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+    if current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN] and course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    course = await crud_course.delete_course(db, course_id=course_id)
+    return course
+
 @router.post("/{course_id}/materials", response_model=CourseMaterialResponse)
 async def upload_material(
     course_id: int,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: str = Form(...),
     db: AsyncSession = Depends(get_db),
@@ -133,4 +173,70 @@ async def upload_material(
         summary=summary_text[:1000],
         # embedding=embedding
     )
+
+    # 4. RAG: Queue Background Task (Non-blocking)
+    background_tasks.add_task(process_rag_ingestion, material.id, text_content)
+
+    return material
+
+# --- Background Worker ---
+async def process_rag_ingestion(material_id: int, text_content: str):
+    """
+    Background Task: Chunk text, generate embeddings, and save to DB.
+    Uses its own DB session to avoid detached instance errors.
+    """
+    from app.db.session import AsyncSessionLocal
+    from app.models.course import CourseMaterialChunk
+    from app.services.embeddings import generate_embeddings
+    
+    print(f"RAG Background: Starting ingestion for Material {material_id}...")
+    
+    async with AsyncSessionLocal() as db:
+        try:
+            chunks = DocumentProcessor.chunk_text(text_content)
+            if not chunks:
+                return
+
+            # Generate embeddings in batch
+            embeddings_list = await generate_embeddings(chunks)
+            
+            chunk_objs = []
+            for text, vector in zip(chunks, embeddings_list):
+                chunk_objs.append(CourseMaterialChunk(
+                    material_id=material_id, 
+                    chunk_text=text,
+                    embedding=vector
+                ))
+            
+            if chunk_objs:
+                db.add_all(chunk_objs)
+                await db.commit()
+                print(f"RAG Background: Successfully saved {len(chunk_objs)} chunks for Material {material_id}.")
+                
+        except Exception as e:
+            print(f"RAG Background Error: Failed to process Material {material_id}: {e}")
+            await db.rollback()
+
+@router.delete("/{course_id}/materials/{material_id}", response_model=CourseMaterialResponse)
+async def delete_material(
+    course_id: int,
+    material_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Delete a course material.
+    """
+    course = await crud_course.get_course(db, course_id=course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+    if current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN] and course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    material = await crud_course.get_course_material(db, material_id=material_id)
+    if not material or material.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Material not found")
+
+    material = await crud_course.delete_course_material(db, material_id=material_id)
     return material

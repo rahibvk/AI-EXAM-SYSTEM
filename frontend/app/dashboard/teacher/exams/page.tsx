@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, FileText, Calendar, Clock, ArrowRight } from "lucide-react"
+import { Loader2, FileText, Calendar, Clock, ArrowRight, Search } from "lucide-react"
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -27,6 +27,8 @@ export default function TeacherExamsPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [exams, setExams] = useState<(Exam & { courseTitle: string })[]>([])
+    const [searchTerm, setSearchTerm] = useState("")
+    const [statusFilter, setStatusFilter] = useState("all") // all, online, offline
 
     useEffect(() => {
         const fetchData = async () => {
@@ -62,18 +64,45 @@ export default function TeacherExamsPage() {
         fetchData()
     }, [])
 
+    const filteredExams = exams.filter(exam => {
+        const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            exam.courseTitle.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesStatus = statusFilter === "all" || exam.mode === statusFilter
+        return matchesSearch && matchesStatus
+    })
+
     if (loading) return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="animate-spin" /></div>
 
     return (
         <div className="max-w-6xl mx-auto space-y-8">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">My Exams</h1>
                     <p className="text-slate-500">Manage exams across all your courses.</p>
                 </div>
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                            placeholder="Search exams..."
+                            className="pl-9 pr-4 h-10 rounded-md border border-slate-200 text-sm focus:ring-2 focus:ring-slate-900 w-full md:w-64"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <select
+                        className="h-10 rounded-md border border-slate-200 px-3 text-sm bg-white"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        <option value="all">All Modes</option>
+                        <option value="online">Online</option>
+                        <option value="offline">Offline</option>
+                    </select>
+                </div>
             </div>
 
-            {exams.length === 0 ? (
+            {filteredExams.length === 0 ? (
                 <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                     <FileText className="w-10 h-10 text-slate-300 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-slate-900">No exams found</h3>
@@ -83,7 +112,7 @@ export default function TeacherExamsPage() {
                 </div>
             ) : (
                 <div className="grid gap-4">
-                    {exams.map((exam) => (
+                    {filteredExams.map((exam) => (
                         <div key={exam.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between group">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">

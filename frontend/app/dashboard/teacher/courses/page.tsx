@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Plus, BookOpen, MoreVertical, Loader2 } from "lucide-react"
+import { Plus, BookOpen, MoreVertical, Loader2, Edit, Trash2 } from "lucide-react"
 import api from "@/lib/api"
 import { useRouter } from "next/navigation"
 
@@ -18,6 +18,7 @@ interface Course {
 export default function CoursesPage() {
     const [courses, setCourses] = useState<Course[]>([])
     const [loading, setLoading] = useState(true)
+    const [activeMenu, setActiveMenu] = useState<number | null>(null)
     const router = useRouter()
 
     useEffect(() => {
@@ -32,6 +33,12 @@ export default function CoursesPage() {
             }
         }
         fetchCourses()
+    }, [])
+
+    useEffect(() => {
+        const handleClickOutside = () => setActiveMenu(null)
+        window.addEventListener("click", handleClickOutside)
+        return () => window.removeEventListener("click", handleClickOutside)
     }, [])
 
     if (loading) {
@@ -72,9 +79,48 @@ export default function CoursesPage() {
                             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
                                 <BookOpen className="w-6 h-6" />
                             </div>
-                            <button className="p-1 hover:bg-slate-100 rounded text-slate-400">
-                                <MoreVertical className="w-4 h-4" />
-                            </button>
+                            <div className="relative">
+                                <button
+                                    className="p-1 hover:bg-slate-100 rounded text-slate-400"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setActiveMenu(activeMenu === course.id ? null : course.id)
+                                    }}
+                                >
+                                    <MoreVertical className="w-4 h-4" />
+                                </button>
+
+                                {activeMenu === course.id && (
+                                    <div className="absolute right-0 top-8 w-32 bg-white border border-slate-200 rounded-md shadow-lg z-10 py-1" onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                router.push(`/dashboard/teacher/courses/${course.id}/edit`)
+                                            }}
+                                        >
+                                            <Edit className="w-4 h-4" /> Edit
+                                        </button>
+                                        <button
+                                            className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 flex items-center gap-2 text-red-600"
+                                            onClick={async (e) => {
+                                                e.stopPropagation()
+                                                if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
+                                                    try {
+                                                        await api.delete(`/courses/${course.id}`)
+                                                        setCourses(courses.filter(c => c.id !== course.id))
+                                                    } catch (error) {
+                                                        console.error("Failed to delete course", error)
+                                                        alert("Failed to delete course")
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4" /> Delete
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <h3 className="text-lg font-semibold mb-1">{course.title}</h3>

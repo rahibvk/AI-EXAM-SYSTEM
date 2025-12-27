@@ -6,6 +6,22 @@ from app.models.answer import StudentAnswer, Evaluation
 from app.schemas.answer import ExamSubmission, StudentAnswerBase
 
 async def submit_exam(db: AsyncSession, submission: ExamSubmission, student_id: int) -> List[StudentAnswer]:
+    # 1. Clear existing answers for this exam/student to allow re-submission
+    # (or distinct latest submission)
+    stmt = select(StudentAnswer).filter(
+        StudentAnswer.exam_id == submission.exam_id,
+        StudentAnswer.student_id == student_id
+    )
+    existing_result = await db.execute(stmt)
+    existing_answers = existing_result.scalars().all()
+    
+    for existing in existing_answers:
+        await db.delete(existing)
+    
+    # Message: We might want to keep history? 
+    # For now, simplistic overwrite behavior to prevent "unique constraint" errors 
+    # if they exist in DB, and to keep data clean.
+    
     saved_answers = []
     for ans in submission.answers:
         db_ans = StudentAnswer(
@@ -18,10 +34,11 @@ async def submit_exam(db: AsyncSession, submission: ExamSubmission, student_id: 
         db.add(db_ans)
         saved_answers.append(db_ans)
     
-    await db.commit()
-    await db.commit()
+    await db.commit() 
+    # No second commit needed
     
     # Re-fetch to get relationships (evaluation) loaded and avoid MissingGreenlet error
+    # We fetch by exam_id which returns list.
     return await get_student_answers(db, submission.exam_id, student_id)
 
 async def get_student_answers(db: AsyncSession, exam_id: int, student_id: int) -> List[StudentAnswer]:

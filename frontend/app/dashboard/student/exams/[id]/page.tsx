@@ -19,6 +19,7 @@ interface Exam {
     title: string
     duration_minutes: number
     questions: Question[]
+    mode?: "online" | "offline"
 }
 
 export default function TakeExamPage() {
@@ -38,28 +39,16 @@ export default function TakeExamPage() {
     // Store answers: { questionId: { text: string, file: File | null } }
     const [answers, setAnswers] = useState<Record<number, { text: string, file: File | null }>>({})
 
+    // Bulk Upload State (Moved up to fix Hooks Rule)
+    const [bulkFiles, setBulkFiles] = useState<File[]>([])
+
     useEffect(() => {
         const fetchExam = async () => {
             try {
                 const res = await api.get(`/exams/${examId}`)
                 const examData = res.data
                 setExam(examData)
-
-                // Calculate Time Left
-                // Logic: 
-                // 1. Duration provided in minutes (e.g. 10 mins).
-                // 2. But strict EndTime might cut it short.
-                // 3. We use the backend response (which implies we are inside the valid window).
-                // Let's rely on examData.duration_minutes first, but checking against end_time would be better strict logic.
-                // For MVP, if backend let us in, we start the timer based on duration.
-
-                // Robust Calc:
-                // If end_time exists: timeLeft = min(duration, end_time - now)
-                // But for simplicity and to match user request "10 mins exam", we just use duration.
-                // Ideally backend sends "seconds_remaining".
-
                 setTimeLeft(examData.duration_minutes * 60)
-
             } catch (error: any) {
                 console.error("Failed to load exam")
                 if (error.response?.status === 403) {
@@ -94,10 +83,9 @@ export default function TakeExamPage() {
     }, [timeLeft])
 
     const handleAutoSubmit = () => {
-        // Prevent double submission
         if (submitting) return;
         alert("Time is up! Your exam is being submitted automatically.")
-        handleSubmit(true) // Pass flag to skip confirmation
+        handleSubmit(true)
     }
 
     const handleTextChange = (text: string) => {
@@ -136,15 +124,11 @@ export default function TakeExamPage() {
                 answers: exam.questions.map(q => ({
                     question_id: q.id,
                     answer_text: answers[q.id]?.text || "",
-                    answer_file_path: null
+                    answer_file_path: null // In future need real upload handling via FormData but backend needs update for that. For now text.
                 }))
             }
-
             await api.post("/submissions/submit", payload)
-
-            // Success
             router.push("/dashboard/student/results")
-
         } catch (err: any) {
             alert("Submission failed: " + (err.response?.data?.detail || err.message))
             setSubmitting(false)
@@ -167,6 +151,128 @@ export default function TakeExamPage() {
 
     if (!exam) return null;
 
+    // Helper to check mode
+    const isOffline = exam.mode === "offline"
+
+    const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            setBulkFiles(Array.from(e.target.files))
+        }
+    }
+
+    const handleBulkSubmit = async () => {
+        if (bulkFiles.length === 0) {
+            alert("Please upload at least one answer sheet.")
+            return
+        }
+        if (!confirm("Confirm submission of " + bulkFiles.length + " pages?")) return
+
+        setSubmitting(true)
+        try {
+            const formData = new FormData()
+            bulkFiles.forEach((file) => {
+                formData.append("files", file)
+            })
+
+            // Use the specific bulk endpoint
+            // Note: need to make sure API client supports FormData or use fetch/axios direct
+            // Assuming `api.post` handles it if we pass headers or just let axios detect
+            await api.post(`/submissions/${examId}/submit-bulk-offline`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
+
+            router.push("/dashboard/student/results")
+        } catch (err: any) {
+            alert("Submission failed: " + (err.response?.data?.detail || err.message))
+            setSubmitting(false)
+        }
+    }
+
+    // --- RENDER FOR OFFLINE MODE ---
+    if (isOffline) {
+        return (
+            <div className="max-w-4xl mx-auto space-y-8 pb-20">
+                <div className="border-b border-slate-200 pb-4">
+                    <h1 className="text-3xl font-bold">{exam.title}</h1>
+                    <div className="flex items-center gap-3 mt-2">
+                        <span className="bg-yellow-100 text-yellow-800 text-sm font-bold px-3 py-1 rounded-full border border-yellow-200">
+                            OFFLINE EXAM
+                        </span>
+                        <div className={cn("flex items-center gap-2 text-sm font-medium px-3 py-1 rounded-full w-fit",
+                            (timeLeft || 0) < 60 ? "bg-red-100 text-red-700 animate-pulse" : "bg-slate-100 text-slate-700"
+                        )}>
+                            <Clock className="w-4 h-4" />
+                            <span>{timeLeft !== null ? formatTime(timeLeft) : "--:--"} Remaining</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Instructions */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-blue-800">
+                    <h3 className="font-bold text-lg mb-2">Instructions</h3>
+                    <ul className="list-disc list-inside space-y-1 opacity-90">
+                        <li>Read all questions below.</li>
+                        <li>Write your answers on paper. Clearly label each answer (e.g. "Q1", "Answer 2").</li>
+                        <li>Scan or take photos of ALL your pages.</li>
+                        <li>Upload all pages at once in the section below.</li>
+                        <li>The AI will automatically detect your answers and grade them.</li>
+                    </ul>
+                </div>
+
+                {/* Question List (Read Only) */}
+                <div className="space-y-6">
+                    <h2 className="text-xl font-bold text-slate-900 border-b pb-2">Questions</h2>
+                    {exam.questions.map((q, idx) => (
+                        <div key={q.id} className="bg-white p-6 rounded-xl border border-slate-200">
+                            <div className="flex justify-between mb-4">
+                                <span className="font-bold text-slate-500">Q{idx + 1}</span>
+                                <span className="text-sm font-medium bg-slate-100 px-2 py-1 rounded text-slate-600">{q.marks} Marks</span>
+                            </div>
+                            <p className="text-lg text-slate-800 leading-relaxed">{q.text}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Bulk Upload Area */}
+                <div className="fixed bottom-0 left-0 lg:left-64 right-0 p-6 bg-white border-t border-slate-200 z-10 shadow-lg">
+                    <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-6">
+                        <div className="flex-1 w-full">
+                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <Upload className="w-8 h-8 mb-3 text-slate-400" />
+                                    <p className="mb-2 text-sm text-slate-500"><span className="font-semibold">Click to upload answer sheets</span></p>
+                                    <p className="text-xs text-slate-500">PNG, JPG (Upload all pages)</p>
+                                </div>
+                                <input type="file" className="hidden" multiple accept="image/*" onChange={handleBulkFileChange} />
+                            </label>
+                            {bulkFiles.length > 0 && (
+                                <div className="mt-2 text-sm text-emerald-600 font-medium text-center">
+                                    {bulkFiles.length} files selected
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={handleBulkSubmit}
+                            disabled={submitting || bulkFiles.length === 0}
+                            className="w-full sm:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg shadow-md disabled:opacity-50 min-w-[200px]"
+                        >
+                            {submitting ? (
+                                <div className="flex items-center gap-2">
+                                    <Loader2 className="animate-spin" /> Processing...
+                                </div>
+                            ) : "Submit All Pages"}
+                        </button>
+                    </div>
+                </div>
+                {/* Padding for fixed footer */}
+                <div className="h-40"></div>
+            </div>
+        )
+    }
+
     const question = exam.questions[currentQuestionIdx]
     const isLast = currentQuestionIdx === exam.questions.length - 1
     const currentAnswer = answers[question.id] || { text: "", file: null }
@@ -177,11 +283,19 @@ export default function TakeExamPage() {
             <div className="flex items-center justify-between border-b border-slate-200 pb-4">
                 <div>
                     <h1 className="text-2xl font-bold">{exam.title}</h1>
-                    <div className={cn("flex items-center gap-2 text-sm mt-1 font-medium px-3 py-1 rounded-full w-fit",
-                        (timeLeft || 0) < 60 ? "bg-red-100 text-red-700 animate-pulse" : "bg-slate-100 text-slate-700"
-                    )}>
-                        <Clock className="w-4 h-4" />
-                        <span>{timeLeft !== null ? formatTime(timeLeft) : "--:--"} Remaining</span>
+                    <div className="flex items-center gap-3 mt-1">
+                        <div className={cn("flex items-center gap-2 text-sm font-medium px-3 py-1 rounded-full w-fit",
+                            (timeLeft || 0) < 60 ? "bg-red-100 text-red-700 animate-pulse" : "bg-slate-100 text-slate-700"
+                        )}>
+                            <Clock className="w-4 h-4" />
+                            <span>{timeLeft !== null ? formatTime(timeLeft) : "--:--"} Remaining</span>
+                        </div>
+
+                        {isOffline && (
+                            <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded-full border border-yellow-200">
+                                OFFLINE EXAM
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="text-right">
@@ -189,6 +303,22 @@ export default function TakeExamPage() {
                     <span className="text-2xl font-bold">{currentQuestionIdx + 1} <span className="text-slate-300 text-lg">/ {exam.questions.length}</span></span>
                 </div>
             </div>
+
+            {/* Offline Mode Banner */}
+            {isOffline && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3 text-blue-800">
+                    <div className="p-2 bg-blue-100 rounded-lg h-fit">
+                        <Upload className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-sm">Offline Submission Required</h3>
+                        <p className="text-sm mt-1 opacity-90">
+                            Please write your answer on paper. Take a clear photo and upload it using the button below.
+                            Text input is optional (you can use it for transcripts or notes).
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Question Card */}
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 min-h-[400px] flex flex-col">
@@ -204,32 +334,75 @@ export default function TakeExamPage() {
                 </h2>
 
                 <div className="flex-1 space-y-4">
-                    <textarea
-                        className="w-full h-48 p-4 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none bg-slate-50"
-                        placeholder="Type your answer here..."
-                        value={currentAnswer.text}
-                        onChange={(e) => handleTextChange(e.target.value)}
-                    />
 
-                    <div className="flex items-center gap-4">
-                        <div className="relative">
+                    {/* Offline Mode: Upload is PRIMARY */}
+                    {isOffline && (
+                        <div className="mb-6 p-6 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-white hover:border-indigo-500 transition-all group text-center">
                             <input
                                 type="file"
-                                id="ans-upload"
+                                id="ans-upload-main"
                                 className="hidden"
                                 accept="image/*"
                                 onChange={handleFileChange}
                             />
                             <label
-                                htmlFor="ans-upload"
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-md text-sm font-medium hover:bg-slate-50 cursor-pointer text-slate-600"
+                                htmlFor="ans-upload-main"
+                                className="cursor-pointer flex flex-col items-center justify-center gap-2"
                             >
-                                <Upload className="w-4 h-4" />
-                                Upload Handwritten Photo
+                                <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                                    <Upload className="w-6 h-6" />
+                                </div>
+                                <span className="font-bold text-slate-700">Upload Answer Photo</span>
+                                <span className="text-xs text-slate-500">Click to select image</span>
                             </label>
+
+                            {currentAnswer.file && (
+                                <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-bold">
+                                    <CheckCircle className="w-4 h-4" />
+                                    {currentAnswer.file.name}
+                                </div>
+                            )}
                         </div>
-                        {currentAnswer.file && <span className="text-xs text-emerald-600 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {currentAnswer.file.name} attached</span>}
+                    )}
+
+                    {/* Text Input (Secondary for Offline, Primary for Online) */}
+                    <div>
+                        {!isOffline && <div className="text-sm font-medium text-slate-700 mb-2">Your Answer</div>}
+                        {isOffline && <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Optional Transcript / Notes</div>}
+
+                        <textarea
+                            className={cn(
+                                "w-full p-4 rounded-lg border  focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none",
+                                isOffline ? "h-24 bg-slate-50 border-slate-200 text-sm" : "h-48 bg-white border-slate-300"
+                            )}
+                            placeholder={isOffline ? "Optional: Type any notes or transcript here..." : "Type your answer here..."}
+                            value={currentAnswer.text}
+                            onChange={(e) => handleTextChange(e.target.value)}
+                        />
                     </div>
+
+                    {/* Show standard upload button ONLY if NOT offline (since offline has the big one above) */}
+                    {!isOffline && (
+                        <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    id="ans-upload"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                />
+                                <label
+                                    htmlFor="ans-upload"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-md text-sm font-medium hover:bg-slate-50 cursor-pointer text-slate-600"
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    Upload Handwritten Photo
+                                </label>
+                            </div>
+                            {currentAnswer.file && <span className="text-xs text-emerald-600 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {currentAnswer.file.name} attached</span>}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -246,7 +419,7 @@ export default function TakeExamPage() {
 
                 {isLast ? (
                     <button
-                        onClick={handleSubmit}
+                        onClick={() => handleSubmit(false)}
                         disabled={submitting}
                         className="px-8 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 disabled:opacity-70"
                     >

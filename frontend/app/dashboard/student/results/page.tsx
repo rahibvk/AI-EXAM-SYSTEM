@@ -85,6 +85,17 @@ export default function StudentResultsPage() {
                                 <div className="flex flex-col items-end">
                                     <span className="text-2xl font-bold text-slate-900">{res.totalMarks.toFixed(1)}</span>
                                     <span className="text-xs text-slate-500">Total Score</span>
+                                    {/* Pass/Fail Badge */}
+                                    {res.exam?.passing_marks !== undefined && res.exam?.passing_marks !== null && (
+                                        <div className={cn(
+                                            "mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide",
+                                            res.totalMarks >= res.exam.passing_marks
+                                                ? "bg-emerald-100 text-emerald-700"
+                                                : "bg-red-100 text-red-700"
+                                        )}>
+                                            {res.totalMarks >= res.exam.passing_marks ? "Passed" : "Failed"}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

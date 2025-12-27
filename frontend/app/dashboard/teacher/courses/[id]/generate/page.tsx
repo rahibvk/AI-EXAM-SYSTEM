@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { motion, AnimatePresence } from "framer-motion"
@@ -19,6 +19,7 @@ export default function GenerateExamPage() {
     const params = useParams()
     const router = useRouter()
     const courseId = params.id
+    console.log("Generate Page Mounted, CourseID:", courseId)
 
     const [step, setStep] = useState<"config" | "preview">("config")
     const [loading, setLoading] = useState(false)
@@ -30,7 +31,6 @@ export default function GenerateExamPage() {
     // Form for configuration
     const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
         defaultValues: {
-            topic: "",
             difficulty: "Medium",
             subjective_count: 3,
             objective_count: 2,
@@ -38,7 +38,7 @@ export default function GenerateExamPage() {
     })
 
     // Fetch materials on mount
-    useState(() => {
+    useEffect(() => {
         const fetchMaterials = async () => {
             try {
                 const res = await api.get(`/courses/${courseId}`)
@@ -48,7 +48,7 @@ export default function GenerateExamPage() {
             }
         }
         if (courseId) fetchMaterials()
-    })
+    }, [courseId])
 
     const handleMaterialToggle = (id: number) => {
         setSelectedMaterials(prev =>
@@ -62,14 +62,15 @@ export default function GenerateExamPage() {
         try {
             const res = await api.post("/exams/generate", {
                 course_id: Number(courseId),
-                topic: data.topic, // Can be empty
+                // topic removed
                 difficulty: data.difficulty,
                 subjective_count: Number(data.subjective_count),
                 objective_count: Number(data.objective_count),
+                total_marks: Number(data.total_marks || 100),
                 material_ids: selectedMaterials.length > 0 ? selectedMaterials : undefined
             })
             setQuestions(res.data)
-            setExamTitle(data.topic ? `${data.topic} Exam` : `Exam for ${new Date().toLocaleDateString()}`)
+            setExamTitle(`Exam for ${new Date().toLocaleDateString()}`)
             setStep("preview")
         } catch (err: any) {
             alert("Generation failed: " + (err.response?.data?.detail || err.message))
@@ -83,7 +84,8 @@ export default function GenerateExamPage() {
         mode: "online",
         startTime: "",
         endTime: "",
-        duration: 60
+        duration: 60,
+        passingMarks: 40 // Default 40%
     })
 
     // 2. Save Exam
@@ -102,10 +104,11 @@ export default function GenerateExamPage() {
 
                     doc.setFontSize(12)
                     doc.text(`Duration: ${examSettings.duration} Minutes`, 20, 30)
-                    doc.text(`Total Marks: ${questions.reduce((sum, q) => sum + q.marks, 0)}`, 20, 36)
+                    doc.text(`Total Marks: ${questions.reduce((sum, q) => sum + q.marks, 0)} (Pass: ${examSettings.passingMarks})`, 20, 36)
 
                     doc.line(20, 40, 190, 40)
 
+                    // ... rest of PDF logic (unchanged essentially, just added pass marks to header)
                     let y = 50
                     questions.forEach((q, i) => {
                         if (y > 270) {
@@ -141,7 +144,8 @@ export default function GenerateExamPage() {
                 duration_minutes: Number(examSettings.duration),
                 start_time: examSettings.startTime ? new Date(examSettings.startTime).toISOString() : null,
                 end_time: examSettings.endTime ? new Date(examSettings.endTime).toISOString() : null,
-                mode: examSettings.mode
+                mode: examSettings.mode,
+                passing_marks: Number(examSettings.passingMarks)
             })
             router.push(`/dashboard/teacher/courses/${courseId}`)
         } catch (err: any) {
@@ -200,27 +204,30 @@ export default function GenerateExamPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <div className="flex justify-between">
-                                    <label className="text-sm font-medium">Topic / Context</label>
-                                    <span className="text-xs text-slate-400 font-normal">(Optional)</span>
-                                </div>
-                                <input
-                                    {...register("topic")}
-                                    className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-slate-900 bg-transparent"
-                                    placeholder="Leave empty to auto-detect"
-                                />
+                                {/* Topic Input Removed */}
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Difficulty</label>
-                                <select
-                                    {...register("difficulty")}
-                                    className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-slate-900 bg-transparent"
-                                >
-                                    <option value="Easy">Easy</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="Hard">Hard</option>
-                                </select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Difficulty</label>
+                                    <select
+                                        {...register("difficulty")}
+                                        className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-slate-900 bg-transparent"
+                                    >
+                                        <option value="Easy">Easy</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Hard">Hard</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Total Marks</label>
+                                    <input
+                                        type="number"
+                                        {...register("total_marks", { value: 100 })}
+                                        className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-slate-900 bg-transparent"
+                                        min={10} max={1000}
+                                    />
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -325,6 +332,16 @@ export default function GenerateExamPage() {
                                             value={examSettings.endTime}
                                             onChange={(e) => setExamSettings({ ...examSettings, endTime: e.target.value })}
                                             className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 bg-transparent"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium">Passing Marks</label>
+                                        <input
+                                            type="number"
+                                            value={examSettings.passingMarks}
+                                            onChange={(e) => setExamSettings({ ...examSettings, passingMarks: Number(e.target.value) })}
+                                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 bg-transparent border-emerald-200 focus:border-emerald-500"
+                                            min="0"
                                         />
                                     </div>
                                 </div>

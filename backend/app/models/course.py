@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
-from sqlalchemy.orm import relationship
-# from pgvector.sqlalchemy import Vector
+from sqlalchemy.orm import relationship, backref
+from pgvector.sqlalchemy import Vector
 from app.models.base import Base
 
 class Course(Base):
@@ -24,3 +24,16 @@ class CourseMaterial(Base):
     # embedding = Column(Vector(1536))
     
     course = relationship("Course", backref="materials")
+
+class CourseMaterialChunk(Base):
+    __tablename__ = "course_material_chunk"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    material_id = Column(Integer, ForeignKey("coursematerial.id"), nullable=False)
+    chunk_text = Column(Text, nullable=False)
+    # Use ARRAY instead of Vector because pgvector extension is not installed on host
+    from sqlalchemy.dialects.postgresql import ARRAY
+    from sqlalchemy import Float
+    embedding = Column(ARRAY(Float))
+    
+    material = relationship("CourseMaterial", backref=backref("chunks", cascade="all, delete-orphan"))

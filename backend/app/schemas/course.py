@@ -24,6 +24,11 @@ class CourseBase(BaseModel):
 class CourseCreate(CourseBase):
     pass
 
+class CourseUpdate(BaseModel):
+    title: Optional[str] = None
+    code: Optional[str] = None
+    description: Optional[str] = None
+
 class CourseResponse(CourseBase):
     id: int
     teacher_id: int

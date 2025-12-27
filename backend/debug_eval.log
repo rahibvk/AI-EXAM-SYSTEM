@@ -11,3 +11,39 @@ Calling EvaluationService for Answer 83
 Successfully evaluated Answer 83
 Calling EvaluationService for Answer 84
 Successfully evaluated Answer 84
+STARTING EVALUATION for IDs: [85, 86, 87, 88, 89, 90, 91, 92, 93, 94]
+Fetched 10 answers from DB.
+Loaded context with 3 materials.
+Calling EvaluationService for Answer 85
+Successfully evaluated Answer 85
+Calling EvaluationService for Answer 86
+Successfully evaluated Answer 86
+Calling EvaluationService for Answer 87
+Successfully evaluated Answer 87
+Calling EvaluationService for Answer 88
+STARTING EVALUATION for IDs: [95, 96, 97, 98, 99, 100, 101, 102, 103, 104]
+Fetched 10 answers from DB.
+Loaded context with 3 materials.
+Calling EvaluationService for Answer 95
+Successfully evaluated Answer 95
+Calling EvaluationService for Answer 96
+Successfully evaluated Answer 96
+Calling EvaluationService for Answer 97
+Successfully evaluated Answer 97
+Calling EvaluationService for Answer 98
+Successfully evaluated Answer 98
+Calling EvaluationService for Answer 99
+Successfully evaluated Answer 99
+Calling EvaluationService for Answer 100
+Successfully evaluated Answer 100
+Calling EvaluationService for Answer 101
+CRITICAL ERROR in background task: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "evaluation_answer_id_key"
+DETAIL:  Key (answer_id)=(101) already exists.
+[SQL: INSERT INTO evaluation (answer_id, marks_awarded, feedback, ai_explanation, confidence_score, review_requested, student_comment, teacher_comment, evaluated_at) VALUES ($1::INTEGER, $2::FLOAT, $3::VARCHAR, $4::VARCHAR, $5::FLOAT, $6::BOOLEAN, $7::VARCHAR, $8::VARCHAR, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING evaluation.id]
+[parameters: (101, 0.0, 'The answer is incorrect. The key characteristic of unstructured business processes is that they are variable and adapt to circumstances, which corresponds to Option B.', "The student's answer was Option A, which states that unstructured business processes are highly repeatable. However, according to the course material ... (56 characters truncated) ... ability and adaptability, not repeatability. Thus, the correct answer is Option B, and the student did not provide this answer, resulting in 0 marks.", 1.0, False, None, None, datetime.datetime(2025, 12, 17, 14, 33, 5, 79905))]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+CRITICAL ERROR in background task: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "evaluation_answer_id_key"
+DETAIL:  Key (answer_id)=(88) already exists.
+[SQL: INSERT INTO evaluation (answer_id, marks_awarded, feedback, ai_explanation, confidence_score, review_requested, student_comment, teacher_comment, evaluated_at) VALUES ($1::INTEGER, $2::FLOAT, $3::VARCHAR, $4::VARCHAR, $5::FLOAT, $6::BOOLEAN, $7::VARCHAR, $8::VARCHAR, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING evaluation.id]
+[parameters: (88, 0.0, 'The answer provided does not address the question. It appears to be a random string of characters rather than a coherent response.', "The student's answer 'greerg' does not contain any relevant information or analysis related to the importance of analyzing both the totality and individual components of business processes in BPM. Therefore, no marks can be awarded for this response.", 1.0, False, None, None, datetime.datetime(2025, 12, 17, 14, 35, 4, 976610))]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)

@@ -42,3 +42,5 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     return {"message": "Welcome to AI Exam System API"}
+
+# Force reload triggers

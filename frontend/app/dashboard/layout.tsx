@@ -11,7 +11,8 @@ import {
     Settings,
     LogOut,
     Menu,
-    X
+    X,
+    AlertTriangle
 } from "lucide-react"
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -40,6 +41,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: "/dashboard/teacher/courses", label: "My Courses", icon: BookOpen },
         { href: "/dashboard/teacher/exams", label: "Exams", icon: FileText },
         { href: "/dashboard/teacher/reviews", label: "Pending Reviews", icon: MessageSquare },
+        { href: "/dashboard/teacher/bulk-upload", label: "Bulk Upload", icon: FileText },
+        { href: "/dashboard/teacher/plagiarism", label: "Cheating Detection", icon: AlertTriangle },
     ] : [
         { href: "/dashboard/student", label: "My Learning", icon: LayoutDashboard },
         { href: "/dashboard/student/courses", label: "Browse Courses", icon: BookOpen },

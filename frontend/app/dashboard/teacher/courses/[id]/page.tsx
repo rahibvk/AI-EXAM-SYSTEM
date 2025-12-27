@@ -61,10 +61,7 @@ export default function CourseDetailPage() {
         }
     }
 
-    const handleGenerateExam = () => {
-        // Mock navigation to generator
-        router.push(`/dashboard/teacher/courses/${id}/generate`)
-    }
+
 
     if (loading) return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="animate-spin" /></div>
     if (!course) return <div>Course not found</div>
@@ -128,7 +125,24 @@ export default function CourseDetailPage() {
                                             {mat.file_type || "Document"} • Added recently
                                         </p>
                                     </div>
-                                    <button className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={async () => {
+                                            if (!confirm("Are you sure you want to delete this material?")) return
+
+                                            try {
+                                                await api.delete(`/courses/${id}/materials/${mat.id}`)
+                                                // Update local state
+                                                setCourse(prev => prev ? {
+                                                    ...prev,
+                                                    materials: prev.materials.filter(m => m.id !== mat.id)
+                                                } : null)
+                                            } catch (err) {
+                                                console.error(err)
+                                                alert("Failed to delete material")
+                                            }
+                                        }}
+                                    >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -148,15 +162,13 @@ export default function CourseDetailPage() {
                             Use your uploaded materials to generate content automatically.
                         </p>
 
-                        <button
-                            onClick={handleGenerateExam}
-                            className="w-full py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg font-medium text-sm transition-colors mb-2"
+                        <Link
+                            href={`/dashboard/teacher/courses/${id}/generate`}
+                            onClick={() => console.log(`Navigating to: /dashboard/teacher/courses/${id}/generate`)}
+                            className="block w-full text-center py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg font-medium text-sm transition-colors mb-2"
                         >
                             Generate Exam
-                        </button>
-                        <button className="w-full py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg font-medium text-sm transition-colors">
-                            Create Flashcards
-                        </button>
+                        </Link>
                     </div>
 
                     <div className="p-6 bg-white border border-slate-200 rounded-xl">

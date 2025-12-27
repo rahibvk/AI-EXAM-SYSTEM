@@ -70,6 +70,12 @@ export default function ExamResultsPage() {
             acc[sId].totalMarks += sub.evaluation.marks_awarded
             acc[sId].evaluatedCount += 1
         }
+
+        // Accumulate Max Possible Marks (Total of all questions answered)
+        if (sub.question?.marks) {
+            acc[sId].maxMarks += sub.question.marks
+        }
+
         acc[sId].answersCount += 1
         return acc
     }, {})
