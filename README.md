@@ -4,7 +4,7 @@ A production-ready platform for universities to generate exams, evaluate subject
 
 ## Features
 
-- **Role-Based Access**: Students, Teachers, Admins.
+- **Role-Based Access**: Students, Teachers
 - **AI Exam Generation**: RAG-based question generation from course PDFs.
 - **Auto-Grading**: GPT-4o evaluation of student answers with detailed feedback.
 - **Handwriting Support**: OCR for physical exam papers.
