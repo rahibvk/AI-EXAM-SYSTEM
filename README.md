@@ -6,7 +6,7 @@ A comprehensive, production-ready platform for modernizing the educational asses
 
 ### 🎓 Student Management
 - **Unified Roster**: Teachers can view and manage all students in a centralized dashboard.
-- **Easy Enrollment**: Enrolling students into courses via email search.
+- **Easy Enrollment**: Enrolling students into courses via email or name search.
 - **Access Control**: Role-based permissions ensuring students only access their assigned assessments.
 
 ### 📝 Exam Generation (AI-Powered)
