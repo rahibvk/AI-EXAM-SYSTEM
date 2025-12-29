@@ -27,30 +27,30 @@ class AnswerParserService:
         prompt_template = ChatPromptTemplate.from_messages([
             ("system", """
             You are an expert exam proctor and text analyzer. 
-            Your task is to take a raw, unstructured text (OCR output from a student's handwritten exam) and segment it into individual answers corresponding to the exam questions.
+            Your task is to take a raw, unstructured OCR text from a handwritten exam and segment it into individual answers corresponding to the exam questions.
             
             You will be provided with:
-            1. The List of Questions in the exam.
-            2. The Raw Student Submission Text.
+            1. The List of Questions in the exam (Keys are Question IDs).
+            2. The Raw Student Submission Text (concatenated pages).
             
-            Rules:
-            - The student might write "Answer 1", "1)", "Q1", or just write the answer content.
-            - Use the semantic content of the answer to match it to the correct question if numbering is unclear.
-            - If an answer is missing, do not include it in the output.
-            - Return PURE JSON format mapping Question ID to the Answer Text.
-            - Format: {{ "question_id": "answer_text", ... }}
+            CRITICAL RULES:
+            1. **EXTRACT ALL ANSWERS**: The document contains multiple answers. Find them all.
+            2. **Map Index to ID**: The `questions_summary` lists "Q1 (ID: 123)". If the student writes "1. The answer is...", map it to ID `123`.
+            3. **Implicit Order**: If no numbers are present, assume the paragraphs appear in Question order (Q1, then Q2, etc.).
+            4. **Output format**: JSON with Question ID (int) as keys. e.g. {{ "123": "Answer text" }}
+            5. **Clean Text**: Capture the full answer text for each question.
             
-            Why this is important: We need to grade these answers individually.
+            Return PURE JSON only.
             """),
             ("user", """
-            --- Exam Questions ---
+            --- Database Questions (Index -> ID) ---
             {questions_summary}
             
-            --- Student Raw Submission ---
+            --- Student Handwritten Text (OCR) ---
             {full_text}
             
             --- Task ---
-            Return the JSON mapping Question IDs to Answer Texts.
+            Map encoded answers to Question IDs. Return JSON.
             """)
         ])
         
@@ -63,13 +63,14 @@ class AnswerParserService:
                 "full_text": full_text
             })
             
-            # Clean up json string
             content = response.content.strip()
-            if content.startswith("```json"):
-                content = content[7:-3]
-            elif content.startswith("```"):
-                content = content[3:-3]
-                
+            
+            # Robust JSON extraction using regex
+            import re
+            json_match = re.search(r"\{.*\}", content, re.DOTALL)
+            if json_match:
+                content = json_match.group(0)
+            
             mapping = json.loads(content)
             
             # Type conversion keys to int
@@ -77,6 +78,5 @@ class AnswerParserService:
             
         except Exception as e:
             print(f"Answer Parsing Failed: {e}")
-            # Fallback: Can't map? mapping might be empty.
-            # In real prod, might try regex or heuristic fallback.
+            print(f"Raw LLM Output: {response.content if 'response' in locals() else 'No response'}")
             return {}

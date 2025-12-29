@@ -97,8 +97,14 @@ export default function StudentDashboard() {
             coursesExamsArrays.flat().forEach((exam: any) => {
                 if (takenExamIds.has(exam.id)) return // Skip taken
 
-                const start = exam.start_time ? new Date(exam.start_time) : null
-                const end = exam.end_time ? new Date(exam.end_time) : null
+                // Ensure UTC parsing by appending Z if missing
+                const getUtcDate = (dateStr: string | null) => {
+                    if (!dateStr) return null
+                    return new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z')
+                }
+
+                const start = getUtcDate(exam.start_time)
+                const end = getUtcDate(exam.end_time)
 
                 if (end && now > end) {
                     allMissed.push(exam)
@@ -119,17 +125,32 @@ export default function StudentDashboard() {
 
             // Combine Active and Upcoming
             const combinedActive = [...allActive, ...allUpcoming].sort((a: any, b: any) => {
-                const aIsUpcoming = new Date(a.start_time) > now
-                const bIsUpcoming = new Date(b.start_time) > now
+                const getProps = (ex: any) => {
+                    const sStr = ex.start_time || ''
+                    const startRaw = sStr.endsWith('Z') ? sStr : (sStr ? sStr + 'Z' : null)
+                    const sDate = startRaw ? new Date(startRaw) : new Date()
+
+                    const eStr = ex.end_time || ''
+                    const endRaw = eStr.endsWith('Z') ? eStr : (eStr ? eStr + 'Z' : null)
+                    const eDate = endRaw ? new Date(endRaw) : new Date()
+
+                    return { start: sDate, end: eDate }
+                }
+
+                const propsA = getProps(a)
+                const propsB = getProps(b)
+
+                const aIsUpcoming = propsA.start > now
+                const bIsUpcoming = propsB.start > now
 
                 if (aIsUpcoming && !bIsUpcoming) return 1
                 if (!aIsUpcoming && bIsUpcoming) return -1
 
                 if (aIsUpcoming && bIsUpcoming) {
-                    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+                    return propsA.start.getTime() - propsB.start.getTime()
                 }
 
-                return new Date(a.end_time).getTime() - new Date(b.end_time).getTime()
+                return propsA.end.getTime() - propsB.end.getTime()
             })
 
             setActiveExams(combinedActive)
@@ -239,14 +260,20 @@ export default function StudentDashboard() {
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <h3 className="font-semibold text-slate-900">{exam.title}</h3>
-                                                {new Date(exam.start_time) > new Date() && (
-                                                    <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">UPCOMING</span>
-                                                )}
+                                                {(() => {
+                                                    if (!exam.start_time) return false
+                                                    // Safe UTC check
+                                                    const sStr = exam.start_time
+                                                    const sDate = new Date(sStr.endsWith('Z') ? sStr : sStr + 'Z')
+                                                    return sDate > new Date()
+                                                })() && (
+                                                        <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">UPCOMING</span>
+                                                    )}
                                             </div>
                                             <p className="text-xs text-slate-500">{exam.duration_minutes} mins • {exam.total_marks} marks</p>
                                         </div>
                                         <Link
-                                            href={`/dashboard/student/courses/${exam.course_id}/exams/${exam.id}`}
+                                            href={`/dashboard/student/exams/${exam.id}`}
                                             className="p-2 bg-white text-indigo-600 rounded-lg border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm"
                                         >
                                             <ArrowRight className="w-4 h-4" />

@@ -320,64 +320,79 @@ async def evaluate_exam_submissions(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Trigger AI evaluation for all answers in an exam.
+    Trigger AI evaluation for all answers in an exam (PARALLELIZED).
     Only Teacher/Admin.
     """
     if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
+    import asyncio
+    
     # Fetch all answers for exam
     submissions = await crud_answer.get_all_exam_submissions(db, exam_id=exam_id)
     
-    evaluated_count = 0
+    tasks = []
+    answers_to_process = []
+    
+    async def process_wrapper(ans):
+        # OCR Logic
+        if not ans.answer_text and ans.answer_file_path:
+            try:
+                # 30s timeout for OCR
+                transcribed = await asyncio.wait_for(OCRService.transcribe_image(ans.answer_file_path), timeout=30.0)
+                ans.answer_text = transcribed
+            except Exception as e:
+                print(f"OCR Error {ans.id}: {e}")
+                # Continue with empty text? Or skip? 
+                # If OCR fails, AI will likely grade 0.
+        
+        q = ans.question
+        if not q or not q.model_answer:
+            return None
+            
+        try:
+            return await EvaluationService.evaluate_answer(
+                answer=ans,
+                model_answer=q.model_answer,
+                question_text=q.text,
+                max_marks=q.marks
+            )
+        except Exception as e:
+            print(f"Eval Error {ans.id}: {e}")
+            return None
+
     for answer in submissions:
         # Skip if already evaluated
         if answer.evaluation:
             continue
             
-        # Get question details (need to lazy load or join)
-        # Note: In `get_all_exam_submissions` we didn't eager load question.
-        # We need question model answer and text.
-        
-        # Force refresh/fetch question (inefficient loop n+1 but okay for MVP)
-        # Better: Join Question in the initial query. 
-        # For now, let's fetch it if missing.
+        # Ensure question is loaded
         if not answer.question:
-             # This attribute might be missing if not loaded. 
-             # Let's rely on `await db.get(Question, answer.question_id)`
-             question = await db.get(Question, answer.question_id)
-        else:
-            question = answer.question
-            
-        if not question or not question.model_answer:
+            # Fallback if eager load failed
+             answer.question = await db.get(Question, answer.question_id)
+             
+        if not answer.question: 
             continue
             
-        # Check if answer needs OCR
-        if not answer.answer_text and answer.answer_file_path:
-            print(f"Running OCR for answer {answer.id}")
-            # Ensure path is valid/exists. 
-            # In a real app, might need to download from S3 if path is a URL.
-            # Here assuming local path as per our upload logic (which we haven't built for answers yet, but will assume generic 'uploads/')
-            try:
-                transcribed_text = await OCRService.transcribe_image(answer.answer_file_path)
-                answer.answer_text = transcribed_text
-                # Update DB with transcribed text so we don't re-run
-                db.add(answer)
-                await db.commit() 
-            except Exception as e:
-                print(f"OCR skipped/failed: {e}")
-                
-        # Perform Evaluation
-        evaluation = await EvaluationService.evaluate_answer(
-            answer=answer,
-            model_answer=question.model_answer,
-            question_text=question.text,
-            max_marks=question.marks
-        )
-        await crud_answer.save_evaluation(db, evaluation)
-        evaluated_count += 1
+        # Add to tasks
+        answers_to_process.append(answer)
+        tasks.append(process_wrapper(answer))
+    
+    if not tasks:
+        return {"message": "No pending evaluations found."}
 
-    return {"message": f"Evaluations completed for {evaluated_count} answers."}
+    # Run parallel
+    results = await asyncio.gather(*tasks)
+    
+    # Batch Save
+    success_count = 0
+    for res in results:
+        if res:
+            db.add(res)
+            success_count += 1
+            
+    await db.commit()
+    return {"message": f"Evaluations completed for {success_count} answers."}
 from app.schemas.answer import ReviewRequest, ManualGradeRequest
 
 @router.get("/pending-reviews", response_model=List[StudentAnswerResponse])

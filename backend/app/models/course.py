@@ -3,6 +3,13 @@ from sqlalchemy.orm import relationship, backref
 from pgvector.sqlalchemy import Vector
 from app.models.base import Base
 
+from sqlalchemy import Table
+
+student_courses = Table('student_courses', Base.metadata,
+    Column('student_id', Integer, ForeignKey('user.id'), primary_key=True),
+    Column('course_id', Integer, ForeignKey('course.id'), primary_key=True)
+)
+
 class Course(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
@@ -11,6 +18,7 @@ class Course(Base):
     teacher_id = Column(Integer, ForeignKey("user.id"), nullable=False)
 
     teacher = relationship("User", backref="courses")
+    students = relationship("User", secondary=student_courses, backref="enrolled_courses")
 
 class CourseMaterial(Base):
     id = Column(Integer, primary_key=True, index=True)

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Loader2, ArrowRight, ArrowLeft, Upload, CheckCircle, Clock } from "lucide-react"
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { parseQuestionText } from "@/lib/examUtils"
 
 interface Question {
     id: number
@@ -330,7 +331,10 @@ export default function TakeExamPage() {
                 </div>
 
                 <h2 className="text-xl font-medium text-slate-800 mb-8 leading-relaxed">
-                    {question.text}
+                    {(() => {
+                        const { questionText } = parseQuestionText(question.text)
+                        return questionText
+                    })()}
                 </h2>
 
                 <div className="flex-1 space-y-4">
@@ -370,15 +374,57 @@ export default function TakeExamPage() {
                         {!isOffline && <div className="text-sm font-medium text-slate-700 mb-2">Your Answer</div>}
                         {isOffline && <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Optional Transcript / Notes</div>}
 
-                        <textarea
-                            className={cn(
-                                "w-full p-4 rounded-lg border  focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none",
-                                isOffline ? "h-24 bg-slate-50 border-slate-200 text-sm" : "h-48 bg-white border-slate-300"
-                            )}
-                            placeholder={isOffline ? "Optional: Type any notes or transcript here..." : "Type your answer here..."}
-                            value={currentAnswer.text}
-                            onChange={(e) => handleTextChange(e.target.value)}
-                        />
+                        {(() => {
+                            const { isMCQ, options } = parseQuestionText(question.text)
+
+                            if (isMCQ && !isOffline) {
+                                return (
+                                    <div className="space-y-3">
+                                        {options.map((opt, idx) => (
+                                            <label
+                                                key={idx}
+                                                className={cn(
+                                                    "flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all",
+                                                    currentAnswer.text === opt
+                                                        ? "bg-indigo-50 border-indigo-500 shadow-sm"
+                                                        : "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                                                )}
+                                            >
+                                                <div className={cn(
+                                                    "w-5 h-5 rounded-full border flex items-center justify-center transition-colors",
+                                                    currentAnswer.text === opt
+                                                        ? "border-indigo-600 bg-indigo-600"
+                                                        : "border-slate-300 bg-white"
+                                                )}>
+                                                    {currentAnswer.text === opt && <div className="w-2 h-2 rounded-full bg-white" />}
+                                                </div>
+                                                <input
+                                                    type="radio"
+                                                    name={`q-${question.id}`}
+                                                    value={opt}
+                                                    checked={currentAnswer.text === opt}
+                                                    onChange={() => handleTextChange(opt)}
+                                                    className="hidden"
+                                                />
+                                                <span className="text-slate-700">{opt}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )
+                            }
+
+                            return (
+                                <textarea
+                                    className={cn(
+                                        "w-full p-4 rounded-lg border  focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none",
+                                        isOffline ? "h-24 bg-slate-50 border-slate-200 text-sm" : "h-48 bg-white border-slate-300"
+                                    )}
+                                    placeholder={isOffline ? "Optional: Type any notes or transcript here..." : "Type your answer here..."}
+                                    value={currentAnswer.text}
+                                    onChange={(e) => handleTextChange(e.target.value)}
+                                />
+                            )
+                        })()}
                     </div>
 
                     {/* Show standard upload button ONLY if NOT offline (since offline has the big one above) */}

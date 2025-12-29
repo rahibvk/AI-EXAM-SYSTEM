@@ -18,7 +18,8 @@ elif key.startswith("sk-place"):
 else:
     print(f"INFO: OPENAI_API_KEY loaded successfully (starts with {key[:4]}...)")
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.api import api_router
 from app.core.config import settings
@@ -36,6 +37,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def catch_exceptions_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal Server Error", "debug_error": str(e)},
+        )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

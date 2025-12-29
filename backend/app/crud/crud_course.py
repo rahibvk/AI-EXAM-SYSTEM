@@ -20,8 +20,15 @@ async def create_course(db: AsyncSession, course: CourseCreate, teacher_id: int)
     )
     return result.scalars().first()
 
-async def get_courses(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Course]:
-    result = await db.execute(select(Course).options(selectinload(Course.materials)).offset(skip).limit(limit))
+async def get_courses(db: AsyncSession, skip: int = 0, limit: int = 100, student_id: Optional[int] = None) -> List[Course]:
+    stmt = select(Course).options(selectinload(Course.materials))
+    
+    if student_id:
+        # Filter by enrollment
+        from app.models.course import student_courses
+        stmt = stmt.join(student_courses, student_courses.c.course_id == Course.id).filter(student_courses.c.student_id == student_id)
+        
+    result = await db.execute(stmt.offset(skip).limit(limit))
     return result.scalars().all()
 
 async def get_course(db: AsyncSession, course_id: int) -> Optional[Course]:

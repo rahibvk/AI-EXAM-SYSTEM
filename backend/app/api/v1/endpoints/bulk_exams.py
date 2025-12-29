@@ -1,6 +1,7 @@
-from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from typing import List, Any, Dict
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 
 from app.api import deps
 from app.db.session import get_db
@@ -17,7 +18,8 @@ async def bulk_upload_exam_papers(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Bulk upload scanned answer sheets for an offline exam.
+    Phase 1: Upload and Analyze scanned answer sheets.
+    Returns extracted data for confirmation.
     """
     if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -25,8 +27,33 @@ async def bulk_upload_exam_papers(
     results = []
     
     for file in files:
-        # Process each file
+        # Process each file (Analysis Only)
         result = await BulkGradingService.process_bulk_upload(db, exam_id, file)
         results.append(result)
         
     return results
+
+class ConfirmUploadRequest(BaseModel):
+    student_id: int
+    answers: Dict[str, str]
+
+@router.post("/{exam_id}/confirm-upload", response_model=Any)
+async def confirm_bulk_upload(
+    exam_id: int,
+    payload: ConfirmUploadRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Phase 2: Confirm and Evaluate.
+    """
+    if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    result = await BulkGradingService.confirm_grading(
+        db, 
+        exam_id, 
+        payload.student_id, 
+        payload.answers
+    )
+    return result

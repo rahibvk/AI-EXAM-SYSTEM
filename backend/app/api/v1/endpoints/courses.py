@@ -9,6 +9,7 @@ from app.schemas.course import CourseCreate, CourseResponse, CourseMaterialRespo
 from app.schemas.user import UserResponse
 from app.db.session import get_db
 from app.models.user import User, UserRole
+from app.models.course import Course, student_courses
 from app.services.document_processor import DocumentProcessor
 from app.services.embeddings import generate_embedding
 
@@ -51,7 +52,11 @@ async def read_courses(
     """
     Retrieve courses.
     """
-    courses = await crud_course.get_courses(db, skip=skip, limit=limit)
+    student_id = None
+    if current_user.role == UserRole.STUDENT:
+        student_id = current_user.id
+        
+    courses = await crud_course.get_courses(db, skip=skip, limit=limit, student_id=student_id)
     return courses
 
 @router.get("/my-courses", response_model=List[CourseResponse])
@@ -240,3 +245,140 @@ async def delete_material(
 
     material = await crud_course.delete_course_material(db, material_id=material_id)
     return material
+
+from app.schemas.course import StudentEnrollmentRequest
+
+@router.post("/{course_id}/students", response_model=UserResponse)
+async def add_student_to_course(
+    course_id: int,
+    enrollment: StudentEnrollmentRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    print(f"DEBUG: Attempting to enroll email: {enrollment.email} to course {course_id}")
+    
+    course = await crud_course.get_course(db, course_id=course_id)
+    if not course:
+        print("DEBUG: Course not found")
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+    if current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN] and course.teacher_id != current_user.id:
+        print("DEBUG: Authorization failed")
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    # Find student by email
+    from sqlalchemy.future import select
+    result = await db.execute(select(User).filter(User.email == enrollment.email))
+    student = result.scalar_one_or_none()
+    
+    if not student:
+        print(f"DEBUG: Student not found for email {enrollment.email}")
+        raise HTTPException(status_code=404, detail="Student with this email not found")
+        
+    if student.role != UserRole.STUDENT:
+        print(f"DEBUG: User {student.email} is not a student")
+        raise HTTPException(status_code=400, detail="User is not a student")
+        
+    # Check if already enrolled
+    stmt = select(User).join(Course.students).filter(Course.id == course_id, User.id == student.id)
+    res = await db.execute(stmt)
+    if res.scalar_one_or_none():
+        print("DEBUG: Already enrolled")
+        raise HTTPException(status_code=400, detail="Student is already enrolled")
+    
+    # Add relation via direct Insert (more stable with AsyncSession)
+    print("DEBUG: Inserting into student_courses...")
+    from app.models.course import student_courses
+    from sqlalchemy import insert
+    
+    try:
+        stmt = insert(student_courses).values(student_id=student.id, course_id=course_id)
+        await db.execute(stmt)
+        await db.commit()
+    except Exception as e:
+        print(f"DEBUG: Insert failed: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Enrollment failed: {str(e)}")
+        
+    print("DEBUG: Enrollment successful")
+    return student
+
+@router.delete("/{course_id}/students/{student_id}", response_model=Any)
+async def remove_student_from_course(
+    course_id: int,
+    student_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Remove a student from the course.
+    """
+    course = await crud_course.get_course(db, course_id=course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+    if current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN] and course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    # Direct delete from association table
+    print(f"DEBUG: Removing student {student_id} from course {course_id}")
+    from app.models.course import student_courses
+    from sqlalchemy import delete
+    
+    try:
+        stmt = delete(student_courses).where(
+            student_courses.c.student_id == student_id,
+            student_courses.c.course_id == course_id
+        )
+        result = await db.execute(stmt)
+        await db.commit()
+        
+        if result.rowcount == 0:
+             print("DEBUG: Student not found in course (rowcount 0)")
+             raise HTTPException(status_code=404, detail="Student not found in this course")
+             
+    except Exception as e:
+        print(f"DEBUG: Remove failed: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Removal failed: {str(e)}")
+    
+    print("DEBUG: Removal successful")
+    return {"message": "Student removed successfully"}
+
+@router.get("/{course_id}/students", response_model=List[UserResponse])
+async def get_course_students(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get all students enrolled in a specific course.
+    """
+    try:
+        from app.models.course import student_courses
+        from sqlalchemy.future import select
+        
+        # Verify course exists
+        course = await crud_course.get_course(db, course_id=course_id)
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+            
+        if current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN] and course.teacher_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        # Select Users joined with student_courses
+        stmt = (
+            select(User)
+            .join(student_courses, student_courses.c.student_id == User.id)
+            .filter(student_courses.c.course_id == course_id)
+        )
+        
+        result = await db.execute(stmt)
+        students = result.scalars().all()
+        return students
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"DEBUG: get_course_students failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch students: {str(e)}")

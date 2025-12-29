@@ -23,32 +23,36 @@ class BulkGradingService:
         file: UploadFile
     ) -> dict:
         """
-        Process a single uploaded answer sheet:
+        Phase 1: Analyze file
         1. OCR -> Text
-        2. Extract Student Name -> Find User
+        2. Identify Student
         3. Parse Answers
-        4. Evaluate & Save
+        Returns data for teacher confirmation.
         """
         try:
-            # 1. Read & OCR
+            # 1. Read Content
             content = await file.read()
-            # Basic check for image vs PDF (OCRService currently envisions images, 
-            # if PDF assume first page or convert - simplicity for now: assume image)
+            full_text = ""
+            filename = file.filename.lower()
             
-            # TODO: Handle PDF conversion if needed, but for now assuming images (jpg/png)
-            full_text = await OCRService.transcribe_bytes(content)
+            if filename.endswith(".pdf"):
+                import fitz # PyMuPDF
+                with fitz.open(stream=content, filetype="pdf") as doc:
+                    for page_num in range(len(doc)):
+                        page = doc.load_page(page_num)
+                        # Increase resolution (zoom x2) for better OCR
+                        mat = fitz.Matrix(2, 2)
+                        pix = page.get_pixmap(matrix=mat)
+                        img_bytes = pix.tobytes("png")
+                        page_text = await OCRService.transcribe_bytes(img_bytes)
+                        full_text += f"\n--- Page {page_num+1} ---\n{page_text}"
+            else:
+                full_text = await OCRService.transcribe_bytes(content)
             
             # 2. Identify Student
             course_id = (await db.get(Exam, exam_id)).course_id
             student = await BulkGradingService._identify_student(db, full_text, course_id)
             
-            if not student:
-                return {
-                    "filename": file.filename,
-                    "status": "failed",
-                    "error": "Could not identify student from the paper."
-                }
-                
             # 3. Fetch Exam Questions
             result = await db.execute(select(Question).filter(Question.exam_id == exam_id))
             questions = result.scalars().all()
@@ -56,56 +60,30 @@ class BulkGradingService:
             # 4. Parse Answers
             answers_map = await AnswerParserService.parse_bulk_submission(full_text, questions)
             
-            # 5. Save & Evaluate Each Answer
-            # In our schema, we don't have a single "Submission" parent object yet.
-            # We save individual StudentAnswer records.
-            # Ideally, we should check if answers already exist for this student/exam and clear them, similar to online submit.
-            # For now, we'll append/overwrite.
-            
-            total_score = 0
-            
-            for q in questions:
-                ans_text = answers_map.get(q.id, "")
-                if not ans_text:
-                    continue
-                    
-                # Store Answer
-                answer_record = StudentAnswer(
-                    exam_id=exam_id,
-                    student_id=student.id,
-                    question_id=q.id,
-                    answer_text=ans_text,
-                    submitted_at=logging.datetime.datetime.now()
-                )
-                db.add(answer_record)
-                await db.commit()
-                await db.refresh(answer_record)
-                
-                # Evaluate
-                evaluation = await EvaluationService.evaluate_answer(
-                    question_text=q.text,
-                    model_answer=q.model_answer,
-                    student_answer=ans_text,
-                    max_marks=q.marks
-                )
-                
-                # Save Evaluation
-                eval_record = Evaluation(
-                    answer_id=answer_record.id,
-                    marks_awarded=evaluation["marks"],
-                    feedback=evaluation["feedback"],
-                    confidence_score=evaluation.get("confidence", 0.8)
-                )
-                db.add(eval_record)
-                total_score += evaluation["marks"]
-            
-            await db.commit()
+            # DEBUG: Write logs to inspect what went wrong
+            try:
+                with open("debug_ocr.txt", "w", encoding="utf-8") as f:
+                    f.write(full_text)
+                import json
+                with open("debug_parsed.json", "w", encoding="utf-8") as f:
+                    json.dump(answers_map, f, indent=2)
+                with open("debug_metadata.txt", "w", encoding="utf-8") as f:
+                    f.write(f"Exam ID: {exam_id}\n")
+                    f.write(f"Questions Found: {[q.id for q in questions]}\n")
+            except Exception as e:
+                print(f"Debug logging failed: {e}")
             
             return {
                 "filename": file.filename,
-                "status": "success",
-                "student": student.full_name,
-                "score": total_score
+                "status": "ready_for_review" if student else "action_required",
+                "student": {
+                    "id": student.id,
+                    "name": student.full_name,
+                    "email": student.email
+                } if student else None,
+                "extracted_data": {
+                    "answers": answers_map
+                }
             }
 
         except Exception as e:
@@ -115,6 +93,96 @@ class BulkGradingService:
                 "status": "error",
                 "error": str(e)
             }
+
+    @staticmethod
+    async def confirm_grading(
+        db: AsyncSession,
+        exam_id: int,
+        student_id: int,
+        answers: dict
+    ) -> dict:
+        """
+        Phase 2: Save & Evaluate (Parallelized)
+        """
+        try:
+            import asyncio
+            import datetime
+            
+            result = await db.execute(select(Question).filter(Question.exam_id == exam_id))
+            questions = result.scalars().all()
+            
+            # 1. Prepare & Save Answers
+            student_answers = []
+            valid_pairs = [] # (Question, StudentAnswer)
+            
+            for q in questions:
+                # Handle string/int key mismatch
+                ans_text = answers.get(str(q.id)) or answers.get(q.id, "")
+                if not ans_text:
+                    continue
+                    
+                answer_record = StudentAnswer(
+                    exam_id=exam_id,
+                    student_id=student_id,
+                    question_id=q.id,
+                    answer_text=ans_text,
+                    submitted_at=datetime.datetime.now()
+                )
+                student_answers.append(answer_record)
+                valid_pairs.append((q, answer_record))
+
+            if not student_answers:
+                # Fetch student name just to be safe/consistent
+                student = await db.get(User, student_id)
+                return {
+                    "status": "success", 
+                    "score": 0, 
+                    "student": student.full_name if student else "Unknown"
+                }
+
+            # Batch save answers to generate IDs
+            db.add_all(student_answers)
+            await db.commit()
+            
+            # Refresh to ensure IDs are available
+            for a in student_answers:
+                await db.refresh(a)
+
+            # 2. Parallel Evaluation
+            # EvaluationService.evaluate_answer(answer, model_answer, question_text, max_marks)
+            tasks = []
+            for q, ans_record in valid_pairs:
+                tasks.append(
+                    EvaluationService.evaluate_answer(
+                        answer=ans_record,
+                        model_answer=q.model_answer,
+                        question_text=q.text,
+                        max_marks=q.marks
+                    )
+                )
+            
+            # Run all LLM calls concurrently
+            evaluations = await asyncio.gather(*tasks)
+            
+            # 3. Save Evaluations
+            total_score = 0
+            for ev in evaluations:
+                db.add(ev)
+                total_score += ev.marks_awarded
+            
+            await db.commit()
+            
+            # Fetch student name
+            student = await db.get(User, student_id)
+            return {
+                "status": "success",
+                "student": student.full_name if student else "Unknown",
+                "score": total_score
+            }
+            
+        except Exception as e:
+            logger.error(f"Confirmation error: {e}")
+            return {"status": "error", "error": str(e)}
 
     @staticmethod
     async def _identify_student(db: AsyncSession, text: str, course_id: int) -> Optional[User]:

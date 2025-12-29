@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Loader2, Sparkles, Save, ArrowLeft, RefreshCw, CheckCircle } from "lucide-react"
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { parseQuestionText } from "@/lib/examUtils"
 
 interface GeneratedQuestion {
     text: string
@@ -348,26 +349,43 @@ export default function GenerateExamPage() {
 
                                 <div className="space-y-6">
                                     <AnimatePresence>
-                                        {questions.map((q, i) => (
-                                            <motion.div
-                                                key={i}
-                                                initial={{ opacity: 0, x: -10 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: i * 0.1 }}
-                                                className="p-4 bg-slate-50 rounded-lg border border-slate-200"
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Question {i + 1}</span>
-                                                    <span className="text-xs font-medium bg-white px-2 py-1 rounded border border-slate-200">{q.marks} Marks</span>
-                                                </div>
-                                                <p className="text-slate-900 font-medium mb-3 whitespace-pre-wrap">{q.text}</p>
+                                        {questions.map((q, i) => {
+                                            const { isMCQ, questionText, options } = parseQuestionText(q.text)
 
-                                                <div className="bg-white p-3 rounded border border-slate-100/50">
-                                                    <p className="text-xs text-emerald-600 font-semibold mb-1">Model Answer:</p>
-                                                    <p className="text-sm text-slate-600">{q.model_answer}</p>
-                                                </div>
-                                            </motion.div>
-                                        ))}
+                                            return (
+                                                <motion.div
+                                                    key={i}
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: i * 0.1 }}
+                                                    className="p-4 bg-slate-50 rounded-lg border border-slate-200"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Question {i + 1}</span>
+                                                        <span className="text-xs font-medium bg-white px-2 py-1 rounded border border-slate-200">{q.marks} Marks</span>
+                                                    </div>
+                                                    <p className="text-slate-900 font-medium mb-3 whitespace-pre-wrap">{questionText}</p>
+
+                                                    {isMCQ && (
+                                                        <div className="mb-4 pl-4 space-y-1">
+                                                            {options.map((opt, idx) => (
+                                                                <div key={idx} className="flex items-center gap-2 text-sm text-slate-700">
+                                                                    <div className="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center text-[10px] text-slate-400">
+                                                                        {String.fromCharCode(65 + idx)}
+                                                                    </div>
+                                                                    <span>{opt}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="bg-white p-3 rounded border border-slate-100/50">
+                                                        <p className="text-xs text-emerald-600 font-semibold mb-1">Model Answer:</p>
+                                                        <p className="text-sm text-slate-600">{q.model_answer}</p>
+                                                    </div>
+                                                </motion.div>
+                                            )
+                                        })}
                                     </AnimatePresence>
                                 </div>
                             </div>

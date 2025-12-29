@@ -50,11 +50,12 @@ async def create_exam(
         raise HTTPException(status_code=403, detail="Not authorized to create exams for this course")
 
     # Fix Timezone Issue: Convert to naive UTC if aware
+    import datetime
     if exam_in.start_time and exam_in.start_time.tzinfo:
-        exam_in.start_time = exam_in.start_time.replace(tzinfo=None)
+        exam_in.start_time = exam_in.start_time.astimezone(datetime.timezone.utc).replace(tzinfo=None)
     
     if exam_in.end_time and exam_in.end_time.tzinfo:
-        exam_in.end_time = exam_in.end_time.replace(tzinfo=None)
+        exam_in.end_time = exam_in.end_time.astimezone(datetime.timezone.utc).replace(tzinfo=None)
 
     exam = await crud_exam.create_exam(db, exam=exam_in)
     return exam

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Users, BookOpen, FileCheck } from "lucide-react"
+import Link from "next/link"
 import api from "@/lib/api"
 
 export default function TeacherDashboard() {
@@ -35,25 +36,27 @@ export default function TeacherDashboard() {
 
             <div className="grid gap-4 md:grid-cols-3">
                 {[
-                    { label: "Active Courses", value: stats.courses, icon: BookOpen, color: "bg-blue-500" },
-                    { label: "Pending Reviews", value: stats.pendingReviews, icon: FileCheck, color: "bg-orange-500" },
-                    { label: "Total Students", value: stats.students, icon: Users, color: "bg-emerald-500" }
+                    { label: "Active Courses", value: stats.courses, icon: BookOpen, color: "bg-blue-500", href: "/dashboard/teacher/courses" },
+                    { label: "Pending Reviews", value: stats.pendingReviews, icon: FileCheck, color: "bg-orange-500", href: "/dashboard/teacher/reviews" },
+                    { label: "Total Students", value: stats.students, icon: Users, color: "bg-emerald-500", href: "/dashboard/teacher/students" }
                 ].map((stat, i) => (
-                    <motion.div
-                        key={i}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                        className="p-6 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 text-slate-900"
-                    >
-                        <div className={`${stat.color} p-3 rounded-lg text-white`}>
-                            <stat.icon className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                            <h3 className="text-2xl font-bold">{stat.value}</h3>
-                        </div>
-                    </motion.div>
+                    <Link href={stat.href || "#"} key={i} className="block">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1 }}
+                            whileHover={{ scale: 1.02 }}
+                            className="p-6 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 text-slate-900 cursor-pointer hover:shadow-md transition-all"
+                        >
+                            <div className={`${stat.color} p-3 rounded-lg text-white`}>
+                                <stat.icon className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-slate-500">{stat.label}</p>
+                                <h3 className="text-2xl font-bold">{stat.value}</h3>
+                            </div>
+                        </motion.div>
+                    </Link>
                 ))}
             </div>
 
