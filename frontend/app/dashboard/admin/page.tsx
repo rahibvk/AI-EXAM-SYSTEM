@@ -12,6 +12,14 @@ interface User {
     is_active: boolean
 }
 
+/**
+ * Admin Dashboard Page
+ * 
+ * Provides system-wide analytics and user management capabilities.
+ * - Lists all registered users (Students, Teachers, Admins).
+ * - Displays user details and active status.
+ * - (Future) Allows actions like deleting or suspending users.
+ */
 export default function AdminDashboard() {
     const [users, setUsers] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
@@ -22,8 +30,7 @@ export default function AdminDashboard() {
 
     const fetchUsers = async () => {
         try {
-            // We actually need an endpoint for this.
-            // Assuming we have one or I'll create it now.
+            // Fetch list of all users from the backend
             const res = await api.get("/users")
             setUsers(res.data)
         } catch (e) {
@@ -70,8 +77,8 @@ export default function AdminDashboard() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${user.role === 'teacher' ? 'bg-purple-50 text-purple-700' :
-                                                user.role === 'admin' ? 'bg-red-50 text-red-700' :
-                                                    'bg-blue-50 text-blue-700'
+                                            user.role === 'admin' ? 'bg-red-50 text-red-700' :
+                                                'bg-blue-50 text-blue-700'
                                             }`}>
                                             {user.role}
                                         </span>

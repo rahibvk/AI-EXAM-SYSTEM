@@ -17,6 +17,14 @@ import {
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
 
+/**
+ * Dashboard Layout
+ * 
+ * Provides the main structure for the dashboard, including:
+ * - Responsive Sidebar Navigation (collapsible on mobile).
+ * - Role-based navigation items (Teacher vs Student).
+ * - Authentication check on mount.
+ */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setSidebarOpen] = useState(true)
     const [role, setRole] = useState<string | null>(null)

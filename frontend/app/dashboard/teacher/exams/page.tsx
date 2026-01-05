@@ -23,6 +23,14 @@ interface Course {
     code: string
 }
 
+/**
+ * Teacher Exams Management Page
+ * 
+ * Allows teachers to:
+ * - View a list of all exams across their courses.
+ * - Filter exams by search term and mode (Online/Offline).
+ * - delete exams (requires password confirmation).
+ */
 export default function TeacherExamsPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
@@ -30,7 +38,7 @@ export default function TeacherExamsPage() {
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState("all") // all, online, offline
 
-    // Delete State
+    // Delete Modal State
     const [deleteId, setDeleteId] = useState<number | null>(null)
     const [password, setPassword] = useState("")
     const [showPassword, setShowPassword] = useState(false)

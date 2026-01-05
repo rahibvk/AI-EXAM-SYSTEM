@@ -15,6 +15,13 @@ interface Course {
     teacher_id: number
 }
 
+/**
+ * Student Courses Page
+ * 
+ * Displays a catalog of all available courses for the student.
+ * - Lists courses with Title, Code, and Description.
+ * - Allows navigation to specific course pages for enrollment or exam viewing.
+ */
 export default function StudentCoursesPage() {
     const [courses, setCourses] = useState<Course[]>([])
     const [loading, setLoading] = useState(true)
@@ -23,7 +30,7 @@ export default function StudentCoursesPage() {
     useEffect(() => {
         const fetchCourses = async () => {
             try {
-                // For students, this endpoint returns all courses (as per our backend logic for now)
+                // Fetch all available courses for browsing
                 const res = await api.get("/courses/")
                 setCourses(res.data)
             } catch (error) {

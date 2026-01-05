@@ -1,5 +1,0 @@
-class ExamSummary(ExamBase):
-    id: int
-    
-    class Config:
-        from_attributes = True

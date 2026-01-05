@@ -1,5 +1,9 @@
 import axios from 'axios';
 
+/**
+ * Axios instance configured for the API.
+ * Base URL is set to localhost:8000/api/v1.
+ */
 const api = axios.create({
     baseURL: 'http://localhost:8000/api/v1',
     headers: {
@@ -7,6 +11,10 @@ const api = axios.create({
     },
 });
 
+/**
+ * Request Interceptor
+ * Automatically attaches the Bearer token from localStorage to every request.
+ */
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -15,6 +23,11 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+/**
+ * Response Interceptor
+ * Handles global error responses, specifically 401 Unauthorized.
+ * Redirects to login if the token is invalid or expired.
+ */
 api.interceptors.response.use(
     (response) => response,
     (error) => {

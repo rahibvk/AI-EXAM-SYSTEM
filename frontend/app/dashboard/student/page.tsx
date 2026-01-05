@@ -6,7 +6,17 @@ import { Trophy, FileCheck, Clock, ArrowRight, AlertCircle, Calendar } from "luc
 import api from "@/lib/api"
 import Link from "next/link"
 
+/**
+ * Student Dashboard Component
+ * 
+ * Displays an overview of the student's progress, including:
+ * - Statistical summary (Exams taken, Average Score, etc.)
+ * - List of Active & Upcoming exams
+ * - List of Missed exams
+ * - Recent results with feedback status
+ */
 export default function StudentDashboard() {
+    // State for dashboard statistics
     const [stats, setStats] = useState({
         examsTaken: 0,
         avgScore: 0,
@@ -21,11 +31,10 @@ export default function StudentDashboard() {
 
     const fetchDashboardData = useCallback(async () => {
         try {
-            setLoading(prev => prev && true) // Only show full loader on first load? Or maybe just simple refresh? 
-            // For smoother UX, maybe we don't set loading=true on background refresh, 
-            // but we need an indicator. Let's keep it simple for now or use a separate analyzing state.
+            // Note: Maintain loading state primarily for initial fetch.
+            setLoading(prev => prev && true)
 
-            // 1. Fetch Submissions (Results)
+            // 1. Fetch Student Submissions (Results)
             const subRes = await api.get("/submissions/me")
             const answers = subRes.data
 

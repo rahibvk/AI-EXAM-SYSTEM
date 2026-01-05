@@ -18,6 +18,14 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
+/**
+ * Login Page Component
+ * 
+ * Handles user authentication via username/password.
+ * - Validates input using Zod schema.
+ * - Submits credentials to the OAuth2 compatible login endpoint.
+ * - Redirects users based on their role (Teacher/Admin -> Dashboard, Student -> Student Dashboard).
+ */
 export default function LoginPage() {
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
