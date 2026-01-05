@@ -1,3 +1,13 @@
+"""
+Exam Seeder
+
+Purpose:
+    Creates two sample exams for the FIRST course found in the DB:
+    1. 'Fresh Active Exam': Online, 1 hour duration, currently active.
+    2. 'Fresh Upcoming Exam': Online, 2 hours duration, starting tomorrow.
+    
+    Used to quickly populate a course with testable content.
+"""
 import asyncio
 import os
 import sys
@@ -12,6 +22,9 @@ from app.models.exam import Exam, ExamMode
 from app.models.course import Course
 
 async def seed_exams():
+    """
+    Seeds Active and Upcoming exams.
+    """
     async with AsyncSessionLocal() as session:
         # Get the first course (assuming at least one exists)
         result = await session.execute(select(Course))

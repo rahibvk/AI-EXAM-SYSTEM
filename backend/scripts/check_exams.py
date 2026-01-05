@@ -1,3 +1,10 @@
+"""
+Exam Lister Script
+
+Purpose:
+    Connects to the database and prints a list of all exams.
+    Used to quickly verify database content without using the API or frontend.
+"""
 import asyncio
 import os
 import sys
@@ -10,6 +17,9 @@ from app.db.session import AsyncSessionLocal
 from app.models.exam import Exam
 
 async def check_exams():
+    """
+    Fetches and prints ID, Title, Start Time, and End Time for all exams.
+    """
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Exam))
         exams = result.scalars().all()

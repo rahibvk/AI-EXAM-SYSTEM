@@ -1,9 +1,11 @@
 import asyncio
 import asyncpg
+from urllib.parse import quote_plus
 
-async def check_creds(user, password, db):
-    dsn = f"postgresql://{user}:{password}@localhost:5432/{db}"
-    print(f"Testing {user}:{password}@{db} ... ", end="")
+async def check_creds(user, password, db, port=5432):
+    encoded_password = quote_plus(password)
+    dsn = f"postgresql://{user}:{encoded_password}@localhost:{port}/{db}"
+    print(f"Testing {user}:{password}@{db} on port {port} ... ", end="")
     try:
         conn = await asyncpg.connect(dsn)
         await conn.close()
@@ -14,14 +16,13 @@ async def check_creds(user, password, db):
         return False
 
 async def main():
+    # Common local credentials to test
     creds = [
-        ("postgres", "Musrah@12", "postgres"),
-        ("postgres", "Musrah%4012", "postgres"),
-        ("postgres", "password", "postgres"),
         ("postgres", "postgres", "postgres"),
+        ("postgres", "password", "postgres"),
         ("postgres", "1234", "postgres"),
-        ("admin", "password", "postgres"),
-         ("postgres", "Musrah@12", "exam_evaluation_db"), # Case where DB exists
+        ("admin", "admin", "postgres"),
+        ("postgres", "Musrah@12", "postgres"), # User's previous attempt
     ]
     
     for user, pwd, db in creds:

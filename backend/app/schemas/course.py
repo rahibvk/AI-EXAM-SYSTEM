@@ -1,3 +1,10 @@
+"""
+Course & Material Schemas
+
+Purpose:
+    Defines the API contract for creating and reading Courses and Materials.
+    Used for request validation and response formatting.
+"""
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -9,6 +16,7 @@ class CourseMaterialCreate(CourseMaterialBase):
     pass
 
 class CourseMaterialResponse(CourseMaterialBase):
+    """Public CourseMaterial definition."""
     id: int
     file_path: str
     file_type: Optional[str] = None
@@ -30,6 +38,7 @@ class CourseUpdate(BaseModel):
     description: Optional[str] = None
 
 class CourseResponse(CourseBase):
+    """Public Course definition including list of materials."""
     id: int
     teacher_id: int
     materials: List[CourseMaterialResponse] = []
@@ -38,4 +47,5 @@ class CourseResponse(CourseBase):
         from_attributes = True
 
 class StudentEnrollmentRequest(BaseModel):
+    """Payload for manually enrolling a student to a course."""
     email: str

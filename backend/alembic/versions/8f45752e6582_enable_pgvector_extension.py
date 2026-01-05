@@ -1,3 +1,11 @@
+"""
+Enable pgvector Extension
+
+Purpose:
+    Explicitly enables the `vector` extension in PostgreSQL.
+    This is required for storing high-dimensional embeddings (e.g., from OpenAI/SentenceTransformer)
+    used in the RAG system.
+"""
 """enable_pgvector_extension
 
 Revision ID: 8f45752e6582

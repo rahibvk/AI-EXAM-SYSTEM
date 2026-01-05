@@ -1,3 +1,11 @@
+"""
+Bulk Grading Workflow Endpoints
+
+Purpose:
+    Orchestrates the 2-Step Bulk Grading Process for physical exams.
+    1. **Upload**: User uploads scanned PDFs -> System OCRs/analyzes them -> Returns draft data.
+    2. **Confirm**: User verifies/edits the mapped answers -> System saves & grades them.
+"""
 from typing import List, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -1,3 +1,12 @@
+"""
+Manual Submission Endpoint Tester
+
+Purpose:
+    A connectivity test script that:
+    1. Checks if the backend is reachable (Root URL).
+    2. Inspects `openapi.json` to verify the `/submissions/submit` route is registered.
+    3. Attempts a direct POST request (which expects 422/400, confirming the endpoint is active).
+"""
 import asyncio
 import httpx
 import sys
@@ -7,6 +16,9 @@ BASE_URL = "http://localhost:8000"
 API_V1 = "/api/v1"
 
 async def test_submit_endpoint():
+    """
+    Runs connectivity checks against the running backend.
+    """
     print(f"Testing connectivity to {BASE_URL}...")
     
     async with httpx.AsyncClient() as client:

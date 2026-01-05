@@ -1,3 +1,10 @@
+"""
+Specific Exam Deletion Tool
+
+Purpose:
+    Deletes a single exam by ID, along with all associated Questions.
+    Cascades deletion manually since we might not have DB-level cascade configured for everything.
+"""
 import asyncio
 import sys
 import os
@@ -9,6 +16,11 @@ from app.models.exam import Exam, Question
 from sqlalchemy import select, delete
 
 async def delete_exam(exam_id):
+    """
+    Deletes Exam and its Questions.
+    Args:
+        exam_id (int): DB ID of the exam.
+    """
     async with AsyncSessionLocal() as db:
         # Check if exists
         query = select(Exam).where(Exam.id == exam_id)

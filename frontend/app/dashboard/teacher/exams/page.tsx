@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, FileText, Calendar, Clock, ArrowRight, Search } from "lucide-react"
+import { Loader2, FileText, Calendar, Clock, ArrowRight, Search, Trash2, AlertTriangle, Eye, EyeOff } from "lucide-react"
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +29,35 @@ export default function TeacherExamsPage() {
     const [exams, setExams] = useState<(Exam & { courseTitle: string })[]>([])
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState("all") // all, online, offline
+
+    // Delete State
+    const [deleteId, setDeleteId] = useState<number | null>(null)
+    const [password, setPassword] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
+    const [deleteLoading, setDeleteLoading] = useState(false)
+
+    const handleDeleteClick = (e: React.MouseEvent, id: number) => {
+        e.stopPropagation()
+        setDeleteId(id)
+        setPassword("")
+        setDeleteLoading(false)
+    }
+
+    const confirmDelete = async () => {
+        if (!deleteId || !password) return
+        setDeleteLoading(true)
+        try {
+            await api.post(`/exams/${deleteId}/delete`, { password })
+            // Success
+            setExams(prev => prev.filter(e => e.id !== deleteId))
+            setDeleteId(null)
+            alert("Exam deleted successfully")
+        } catch (err: any) {
+            alert(err.response?.data?.detail || "Failed to delete exam")
+        } finally {
+            setDeleteLoading(false)
+        }
+    }
 
     useEffect(() => {
         const fetchData = async () => {
@@ -140,14 +169,81 @@ export default function TeacherExamsPage() {
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => router.push(`/dashboard/teacher/exams/${exam.id}`)}
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
-                            >
-                                <ArrowRight className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={(e) => handleDeleteClick(e, exam.id)}
+                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                    title="Delete Exam"
+                                >
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={() => router.push(`/dashboard/teacher/exams/${exam.id}`)}
+                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                                >
+                                    <ArrowRight className="w-5 h-5" />
+                                </button>
+                            </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                                    <AlertTriangle className="w-6 h-6 text-red-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900">Delete Exam</h3>
+                                    <p className="text-sm text-slate-500">This action cannot be undone.</p>
+                                </div>
+                            </div>
+
+                            <p className="text-slate-600 mb-6">
+                                Please enter your password to confirm deletion of this exam.
+                            </p>
+
+                            <div className="relative mb-6">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Enter your password"
+                                    className="w-full h-10 rounded-md border border-slate-300 px-3 pr-10 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setDeleteId(null)}
+                                    className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md"
+                                    disabled={deleteLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    disabled={!password || deleteLoading}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {deleteLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    Delete Exam
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

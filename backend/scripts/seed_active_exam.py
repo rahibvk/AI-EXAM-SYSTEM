@@ -1,3 +1,10 @@
+"""
+Active Exam Seeder
+
+Purpose:
+    Creates a specific "Long Duration Active Exam" (1 Week validity) for the first course found.
+    Used to ensure there is at least one active exam available for testing submission workflows.
+"""
 import asyncio
 import os
 import sys
@@ -12,6 +19,9 @@ from app.models.exam import Exam, ExamMode
 from app.models.course import Course
 
 async def seed_long_exam():
+    """
+    Creates an Active Exam (Start: Yesterday, End: Next Week).
+    """
     async with AsyncSessionLocal() as session:
         # Get the first course
         result = await session.execute(select(Course))

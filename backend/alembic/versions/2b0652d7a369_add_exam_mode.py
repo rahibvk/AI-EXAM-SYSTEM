@@ -1,3 +1,10 @@
+"""
+Add Exam Mode Column
+
+Purpose:
+    Adds a 'mode' column to the Exam table to distinguish between different exam types
+    (e.g., "hybrid", "online", "physical").
+"""
 """add_exam_mode
 
 Revision ID: 2b0652d7a369

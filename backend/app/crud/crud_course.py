@@ -1,3 +1,13 @@
+"""
+Course CRUD Operations
+
+Purpose:
+    Handles creation and retrieval of Courses and Course Materials.
+
+Special Logic:
+    - **Physical File Deletion**: When deleting a CourseMaterial, also removes the file from disk (see `delete_course_material`).
+    - **RAG Cleanup**: Explicitly deletes associated `CourseMaterialChunk` rows before deleting the material to handle CASCADE issues gracefully.
+"""
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -6,6 +16,7 @@ from app.models.course import Course, CourseMaterial
 from app.schemas.course import CourseCreate, CourseUpdate
 
 async def create_course(db: AsyncSession, course: CourseCreate, teacher_id: int) -> Course:
+    """Creates a new course and links it to the teacher."""
     db_course = Course(**course.dict(), teacher_id=teacher_id)
     db.add(db_course)
     await db.commit()
@@ -21,6 +32,10 @@ async def create_course(db: AsyncSession, course: CourseCreate, teacher_id: int)
     return result.scalars().first()
 
 async def get_courses(db: AsyncSession, skip: int = 0, limit: int = 100, student_id: Optional[int] = None) -> List[Course]:
+    """
+    Retrieves a list of courses.
+    Optional: Filter by Student ID (fetching only enrolled courses).
+    """
     stmt = select(Course).options(selectinload(Course.materials))
     
     if student_id:
@@ -52,6 +67,7 @@ async def add_course_material(
     summary: str,
     # embedding: list[float]
 ) -> CourseMaterial:
+    """Records a file upload in the database."""
     db_material = CourseMaterial(
         course_id=course_id,
         title=title,
@@ -93,6 +109,12 @@ async def get_course_material(db: AsyncSession, material_id: int) -> Optional[Co
     return result.scalars().first()
 
 async def delete_course_material(db: AsyncSession, material_id: int) -> Optional[CourseMaterial]:
+    """
+    Deleting a material involves thorough cleanup:
+    1. Disk cleanup (removing the physical file).
+    2. RAG cleanup (removing related vector chunks).
+    3. DB Record removal.
+    """
     db_material = await get_course_material(db, material_id)
     if not db_material:
         return None

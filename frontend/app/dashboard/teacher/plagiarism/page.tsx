@@ -22,7 +22,7 @@ export default function PlagiarismPage() {
                 // Re-using the logic from Dashboard: api.get("/users/dashboard-stats") doesn't give list.
                 // Let's try fetching all courses if the user is a teacher, or implementing a specialized fetch.
                 // Accessing /courses/ should generally return relevant courses.
-                const coursesRes = await api.get("/courses")
+                const coursesRes = await api.get("/courses/my-courses")
                 setCourses(coursesRes.data)
             } catch (e) {
                 console.error("Failed to fetch courses")
@@ -117,26 +117,43 @@ export default function PlagiarismPage() {
                         <div className="grid gap-4">
                             {report.map((item, idx) => (
                                 <div key={idx} className="bg-white p-4 rounded-lg border border-l-4 border-l-red-500 border-y-slate-200 border-r-slate-200 shadow-sm">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <h3 className="font-semibold text-slate-900">{item.student_1} <span className="text-slate-400 font-normal mx-2">vs</span> {item.student_2}</h3>
-                                            <p className="text-xs text-slate-500 mt-0.5">Question: {item.question_text}</p>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex-1 mr-4">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide">
+                                                    Question {item.question_number}
+                                                </span>
+                                                <span className="text-xs text-slate-400 font-medium">
+                                                    {item.question_marks} Marks
+                                                </span>
+                                            </div>
+                                            <h3 className="text-lg font-medium text-slate-900 leading-snug">
+                                                {item.question_text}
+                                            </h3>
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <span className="text-sm text-slate-500">Involved Students:</span>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {item.students.map((s: any, i: number) => (
+                                                        <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700">
+                                                            {s.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
+                                        <div className="text-right shrink-0 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
                                             <span className="block text-2xl font-bold text-red-600">{item.similarity_score}%</span>
-                                            <span className="text-xs text-slate-500">Similarity Match</span>
+                                            <span className="text-xs text-red-600 font-medium">Similarity</span>
                                         </div>
                                     </div>
 
-                                    <div className="grid md:grid-cols-2 gap-4 mt-4 bg-slate-50 p-3 rounded text-sm text-slate-700">
-                                        <div>
-                                            <p className="text-xs font-semibold text-slate-500 mb-1">Student A Answer:</p>
-                                            <p className="italic">"{item.snippet_1}"</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-semibold text-slate-500 mb-1">Student B Answer:</p>
-                                            <p className="italic">"{item.snippet_2}"</p>
-                                        </div>
+                                    <div className="mt-4 bg-slate-50 p-3 rounded text-sm text-slate-700 grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                                        {item.students.map((student: any, sIdx: number) => (
+                                            <div key={sIdx} className="bg-white p-3 rounded border border-slate-100 shadow-sm">
+                                                <p className="text-xs font-semibold text-slate-500 mb-1 border-b pb-1">{student.name}</p>
+                                                <p className="italic text-slate-600 mt-1 text-xs leading-relaxed">"{student.snippet}"</p>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             ))}

@@ -1,3 +1,13 @@
+"""
+User & Dashboard Endpoints
+
+Purpose:
+    Handles User management and Dashboard statistics.
+
+Key Features:
+    - **Dashboard Stats**: Aggregates counts (Courses, Students, pending reviews) for the Teacher Dashboard.
+    - **Student Search**: Allows teachers to find students by name/email to enroll them in courses.
+"""
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +27,11 @@ async def get_teacher_dashboard_stats(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get dashboard statistics for the logged-in teacher.
+    Get dynamic dashboard statistics for the logged-in teacher.
+    Returns:
+        - `courses`: Number of courses created by the teacher.
+        - `students`: Unique count of students enrolled in those courses.
+        - `pending_reviews`: Count of evaluations flagged for manual review.
     """
     if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -67,7 +81,8 @@ async def get_my_students(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get list of students who have submitted answers to the teacher's courses.
+    Get list of students who are enrolled in the teacher's courses.
+    Distinct list (if a student is in 2 courses, shows once).
     """
     if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -93,7 +108,8 @@ async def search_students(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Search for students by name or email.
+    Search for students by partial name or email.
+    Useful for the manual enrollment UI.
     """
     if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -114,7 +130,7 @@ async def read_users(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Retrieve users.
+    Retrieve users (Admin only).
     """
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=400, detail="The user doesn't have enough privileges")

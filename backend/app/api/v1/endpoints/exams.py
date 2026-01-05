@@ -1,7 +1,18 @@
+"""
+Exam Management Endpoints
+
+Purpose:
+    Handles creation, retrieval, and management of Exams.
+    Integrates with AI services for Question Generation and Plagiarism Detection.
+
+Key Features:
+    - **Generate**: Uses `ExamGeneratorService` (LLM) to create questions from course materials.
+    - **Plagiarism**: Triggers pairwise comparison of all student answers in an exam.
+    - **Security**: Students can only access exams during their valid time window.
+"""
 from typing import List, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api import deps
 from app.crud import crud_exam, crud_course
 from app.schemas.exam import ExamCreate, ExamResponse, QuestionCreate
@@ -37,11 +48,11 @@ async def create_exam(
 ) -> Any:
     """
     Create a new exam with questions.
+    Validates course ownership and normalizes timezones to UTC.
     """
     if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    
     # Verify course belongs to teacher (optional but good security)
     course = await crud_course.get_course(db, course_id=exam_in.course_id)
     if not course:
@@ -76,6 +87,7 @@ async def generate_exam_questions(
 ) -> Any:
     """
     Generate questions using AI based on course materials.
+    Uses RAG (if logic enabled) or full text of materials.
     """
     if current_user.role not in [UserRole.TEACHER, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -105,6 +117,7 @@ async def read_exam(
 ) -> Any:
     """
     Get specific exam details.
+    Enforces Strict Access Control (Start/End times) for Students.
     """
     exam = await crud_exam.get_exam(db, exam_id=exam_id)
     if not exam:
@@ -146,3 +159,31 @@ async def read_exams_by_course(
     """
     exams = await crud_exam.get_exams_by_course(db, course_id=course_id)
     return exams
+
+@router.post("/{exam_id}/delete", response_model=Any)
+async def delete_exam(
+    exam_id: int,
+    password: str = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Delete an exam with password confirmation to prevent accidental data loss.
+    """
+    # 1. Verify Password
+    from app.core.security import verify_password
+    if not verify_password(password, current_user.hashed_password):
+         raise HTTPException(status_code=403, detail="Invalid password")
+    
+    # 2. Get Exam & Check Permissions
+    exam = await crud_exam.get_exam(db, exam_id=exam_id)
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    course = await crud_course.get_course(db, course_id=exam.course_id)
+    if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this exam")
+
+    # 3. Delete
+    await crud_exam.delete_exam(db, exam_id=exam_id)
+    return {"message": "Exam deleted successfully"}

@@ -1,17 +1,30 @@
+"""
+Submission & Grading Endpoints
+
+Purpose:
+    Handles Student Submissions (Online & Bulk Offline) and their Evaluations.
+
+Key Features:
+    - **Background Grading**: Submissions trigger a BackgroundTask (`evaluate_answers_background_task`) 
+      to asynchronously grade answers using AI, preventing timeout on long exams.
+    - **Parallel Processing**: Uses `asyncio.gather` to grade multiple questions simultaneously.
+    - **Bulk Offline**: Handles processing of scanned image packs, running OCR -> Segmentation -> Grading pipeline.
+"""
 from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 
 from app.api import deps
 from app.crud import crud_answer, crud_exam
-from app.schemas.answer import ExamSubmission, StudentAnswerResponse, EvaluationResponse
+from app.schemas.answer import ExamSubmission, StudentAnswerResponse, EvaluationResponse, ReviewRequest, ManualGradeRequest
 from app.db.session import get_db, AsyncSessionLocal
 from app.models.user import User, UserRole
 from app.models.answer import StudentAnswer
 from app.services.evaluation_service import EvaluationService
 from app.services.ocr_service import OCRService
+from app.services.answer_parser import AnswerParserService
 from app.models.exam import Question
 
 router = APIRouter()

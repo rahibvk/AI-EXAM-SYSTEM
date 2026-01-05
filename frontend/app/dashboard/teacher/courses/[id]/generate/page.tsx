@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, Sparkles, Save, ArrowLeft, RefreshCw, CheckCircle } from "lucide-react"
+import { Loader2, Sparkles, Save, ArrowLeft, RefreshCw, CheckCircle, Plus, X, Trash2 } from "lucide-react"
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { parseQuestionText } from "@/lib/examUtils"
@@ -29,12 +29,82 @@ export default function GenerateExamPage() {
     const [materials, setMaterials] = useState<any[]>([])
     const [selectedMaterials, setSelectedMaterials] = useState<number[]>([])
 
+    // Manual Question State
+    const [showAddQuestion, setShowAddQuestion] = useState(false)
+    const [newQuestionType, setNewQuestionType] = useState<"subjective" | "objective">("subjective")
+    const [newQuestionText, setNewQuestionText] = useState("")
+    const [newQuestionMarks, setNewQuestionMarks] = useState(5)
+    const [newQuestionModelAnswer, setNewQuestionModelAnswer] = useState("")
+    // MCQ Options
+    const [mcqOptions, setMcqOptions] = useState<string[]>(["", ""])
+    const [correctOptionIndex, setCorrectOptionIndex] = useState(0)
+
+    const handleAddManualQuestion = () => {
+        let finalQuestionText = newQuestionText
+        let finalModelAnswer = newQuestionModelAnswer
+
+        if (newQuestionType === "objective") {
+            // Validate options
+            const validOptions = mcqOptions.filter(o => o.trim() !== "")
+            if (validOptions.length < 2) {
+                alert("Please provide at least 2 valid options.")
+                return
+            }
+
+            // Format as expected by examUtils
+            finalQuestionText = `${newQuestionText}\n\nOptions:\n${validOptions.map(o => `- ${o}`).join("\n")}`
+            finalModelAnswer = validOptions[correctOptionIndex] || validOptions[0]
+        }
+
+        const newQ: GeneratedQuestion = {
+            text: finalQuestionText,
+            question_type: newQuestionType,
+            marks: Number(newQuestionMarks),
+            model_answer: finalModelAnswer
+        }
+
+        setQuestions([...questions, newQ])
+        setShowAddQuestion(false)
+
+        // Reset Form
+        setNewQuestionText("")
+        setNewQuestionModelAnswer("")
+        setMcqOptions(["", ""])
+        setCorrectOptionIndex(0)
+    }
+
+    const removeQuestion = (index: number) => {
+        const newQ = [...questions]
+        newQ.splice(index, 1)
+        setQuestions(newQ)
+    }
+
+    const addMcqOption = () => {
+        setMcqOptions([...mcqOptions, ""])
+    }
+
+    const updateMcqOption = (idx: number, val: string) => {
+        const newOpts = [...mcqOptions]
+        newOpts[idx] = val
+        setMcqOptions(newOpts)
+    }
+
+    const removeMcqOption = (idx: number) => {
+        if (mcqOptions.length <= 2) return
+        const newOpts = mcqOptions.filter((_, i) => i !== idx)
+        setMcqOptions(newOpts)
+        if (correctOptionIndex >= idx && correctOptionIndex > 0) {
+            setCorrectOptionIndex(correctOptionIndex - 1)
+        }
+    }
+
     // Form for configuration
     const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
         defaultValues: {
             difficulty: "Medium",
             subjective_count: 3,
             objective_count: 2,
+            total_marks: 100,
         }
     })
 
@@ -91,6 +161,40 @@ export default function GenerateExamPage() {
 
     // 2. Save Exam
     const onSave = async () => {
+        // Validation
+        if (!examTitle.trim()) {
+            alert("Please enter an Exam Title.")
+            return
+        }
+        if (!examSettings.startTime) {
+            alert("Please select a Start Time.")
+            return
+        }
+        if (!examSettings.endTime) {
+            alert("Please select an End Time.")
+            return
+        }
+        if (Number(examSettings.duration) <= 0) {
+            alert("Duration must be greater than 0.")
+            return
+        }
+
+        // Advanced Logic Validation
+        const start = new Date(examSettings.startTime)
+        const end = new Date(examSettings.endTime)
+
+        if (end <= start) {
+            alert("End Time must be after Start Time.")
+            return
+        }
+
+        const windowMinutes = (end.getTime() - start.getTime()) / (1000 * 60)
+        if (Number(examSettings.duration) > windowMinutes) {
+            alert(`Duration (${examSettings.duration}m) cannot exceed the time window between Start and End (${Math.floor(windowMinutes)}m).`)
+            return
+        }
+        // End validation
+
         setLoading(true)
         try {
             // Check for Offline Mode -> PDF Download
@@ -276,7 +380,13 @@ export default function GenerateExamPage() {
                             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                                 <div className="flex items-center justify-between mb-6">
                                     <h2 className="text-lg font-bold">Preview Exam</h2>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 items-center">
+                                        <div className="bg-slate-100 px-3 py-1 rounded-full text-xs font-semibold text-slate-700">
+                                            {questions.length} Questions
+                                        </div>
+                                        <div className="bg-indigo-50 px-3 py-1 rounded-full text-xs font-semibold text-indigo-700">
+                                            Total Marks: {questions.reduce((sum, q) => sum + q.marks, 0)}
+                                        </div>
                                         <button
                                             onClick={() => setStep('config')}
                                             className="p-2 text-slate-500 hover:bg-slate-50 rounded-md"
@@ -285,6 +395,17 @@ export default function GenerateExamPage() {
                                             <RefreshCw className="w-4 h-4" />
                                         </button>
                                     </div>
+                                </div>
+
+                                {/* Add Question Button Area */}
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={() => setShowAddQuestion(true)}
+                                        className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-md transition-colors"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Add {questions.length > 0 ? "Another " : ""}Question
+                                    </button>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -358,8 +479,15 @@ export default function GenerateExamPage() {
                                                     initial={{ opacity: 0, x: -10 }}
                                                     animate={{ opacity: 1, x: 0 }}
                                                     transition={{ delay: i * 0.1 }}
-                                                    className="p-4 bg-slate-50 rounded-lg border border-slate-200"
+                                                    className="p-4 bg-slate-50 rounded-lg border border-slate-200 relative group"
                                                 >
+                                                    <button
+                                                        onClick={() => removeQuestion(i)}
+                                                        className="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                        title="Remove Question"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
                                                     <div className="flex justify-between items-start mb-2">
                                                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Question {i + 1}</span>
                                                         <span className="text-xs font-medium bg-white px-2 py-1 rounded border border-slate-200">{q.marks} Marks</span>
@@ -413,6 +541,135 @@ export default function GenerateExamPage() {
                         </div>
                     )}
                 </div>
+
+                {/* Add Question Modal */}
+                <AnimatePresence>
+                    {showAddQuestion && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden"
+                            >
+                                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                                    <h3 className="font-bold text-lg">Add Manual Question</h3>
+                                    <button onClick={() => setShowAddQuestion(false)} className="p-1 hover:bg-slate-100 rounded-full">
+                                        <X className="w-5 h-5 text-slate-500" />
+                                    </button>
+                                </div>
+                                <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+
+                                    {/* Type Selection */}
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="qtype"
+                                                checked={newQuestionType === "subjective"}
+                                                onChange={() => setNewQuestionType("subjective")}
+                                                className="text-purple-600 focus:ring-purple-600"
+                                            />
+                                            <span className="text-sm font-medium">Subjective</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="qtype"
+                                                checked={newQuestionType === "objective"}
+                                                onChange={() => setNewQuestionType("objective")}
+                                                className="text-purple-600 focus:ring-purple-600"
+                                            />
+                                            <span className="text-sm font-medium">Multiple Choice (MCQ)</span>
+                                        </label>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-sm font-medium block mb-1">Question Text</label>
+                                        <textarea
+                                            value={newQuestionText}
+                                            onChange={(e) => setNewQuestionText(e.target.value)}
+                                            className="w-full rounded-md border border-slate-200 p-2 text-sm focus:ring-2 focus:ring-slate-900 min-h-[80px]"
+                                            placeholder="Enter your question here..."
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-sm font-medium block mb-1">Marks</label>
+                                        <input
+                                            type="number"
+                                            value={newQuestionMarks}
+                                            onChange={(e) => setNewQuestionMarks(Number(e.target.value))}
+                                            className="w-full rounded-md border border-slate-200 p-2 text-sm focus:ring-2 focus:ring-slate-900"
+                                            min={1}
+                                        />
+                                    </div>
+
+                                    {newQuestionType === "subjective" ? (
+                                        <div>
+                                            <label className="text-sm font-medium block mb-1">Model Answer</label>
+                                            <textarea
+                                                value={newQuestionModelAnswer}
+                                                onChange={(e) => setNewQuestionModelAnswer(e.target.value)}
+                                                className="w-full rounded-md border border-slate-200 p-2 text-sm focus:ring-2 focus:ring-slate-900 min-h-[60px]"
+                                                placeholder="Expected answer key..."
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <label className="text-sm font-medium block">Options</label>
+                                            {mcqOptions.map((opt, idx) => (
+                                                <div key={idx} className="flex items-center gap-2">
+                                                    <input
+                                                        type="radio"
+                                                        name="correctOption"
+                                                        checked={correctOptionIndex === idx}
+                                                        onChange={() => setCorrectOptionIndex(idx)}
+                                                        title="Mark as correct answer"
+                                                        className="text-emerald-600 focus:ring-emerald-600"
+                                                    />
+                                                    <input
+                                                        value={opt}
+                                                        onChange={(e) => updateMcqOption(idx, e.target.value)}
+                                                        className="flex-1 rounded-md border border-slate-200 p-2 text-sm"
+                                                        placeholder={`Option ${idx + 1}`}
+                                                    />
+                                                    {mcqOptions.length > 2 && (
+                                                        <button onClick={() => removeMcqOption(idx)} className="text-slate-400 hover:text-red-500">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <button
+                                                onClick={addMcqOption}
+                                                className="text-xs text-indigo-600 font-medium hover:underline flex items-center gap-1"
+                                            >
+                                                <Plus className="w-3 h-3" /> Add Option
+                                            </button>
+                                        </div>
+                                    )}
+
+                                </div>
+                                <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+                                    <button
+                                        onClick={() => setShowAddQuestion(false)}
+                                        className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-md"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleAddManualQuestion}
+                                        disabled={!newQuestionText}
+                                        className="px-4 py-2 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md disabled:opacity-50"
+                                    >
+                                        Add Question
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     )

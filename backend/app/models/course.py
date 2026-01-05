@@ -1,3 +1,16 @@
+"""
+Course Models
+
+Purpose:
+    Defines the hierarchy for Courses and their Study Materials.
+    Includes logic for RAG (retrieving chunks of text from materials).
+
+Relationships:
+    - User (Teacher) -> Many Courses
+    - User (Student) <-> Many Courses (via `student_courses` table)
+    - Course -> Many CourseMaterials
+    - CourseMaterial -> Many CourseMaterialChunks (for vector search)
+"""
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship, backref
 from pgvector.sqlalchemy import Vector
@@ -5,12 +18,16 @@ from app.models.base import Base
 
 from sqlalchemy import Table
 
+# Association Table for Many-to-Many relationship between Student and Course
 student_courses = Table('student_courses', Base.metadata,
     Column('student_id', Integer, ForeignKey('user.id'), primary_key=True),
     Column('course_id', Integer, ForeignKey('course.id'), primary_key=True)
 )
 
 class Course(Base):
+    """
+    Represents an academic course (e.g., "Physics 101").
+    """
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
     code = Column(String, unique=True, index=True, nullable=False)
@@ -21,6 +38,9 @@ class Course(Base):
     students = relationship("User", secondary=student_courses, backref="enrolled_courses")
 
 class CourseMaterial(Base):
+    """
+    Represents a file uploaded to a course (PDF, etc.).
+    """
     id = Column(Integer, primary_key=True, index=True)
     course_id = Column(Integer, ForeignKey("course.id"), nullable=False)
     title = Column(String, nullable=False)
@@ -29,17 +49,27 @@ class CourseMaterial(Base):
     content_summary = Column(Text)
     
     # Embedding for RAG (1536 dimensions for OpenAI usually, adjust as needed)
+    # Note: We use CourseMaterialChunk for granular embeddings instead of embedding the whole file here.
     # embedding = Column(Vector(1536))
     
     course = relationship("Course", backref="materials")
 
 class CourseMaterialChunk(Base):
+    """
+    Stores small segments of text from a CourseMaterial.
+    Used for Semantic Search (RAG).
+    
+    Attributes:
+        chunk_text: A paragraph or section of text.
+        embedding: Vector representation of that text.
+    """
     __tablename__ = "course_material_chunk"
     
     id = Column(Integer, primary_key=True, index=True)
     material_id = Column(Integer, ForeignKey("coursematerial.id"), nullable=False)
     chunk_text = Column(Text, nullable=False)
     # Use ARRAY instead of Vector because pgvector extension is not installed on host
+    # In production with pgvector, use: Column(Vector(1536))
     from sqlalchemy.dialects.postgresql import ARRAY
     from sqlalchemy import Float
     embedding = Column(ARRAY(Float))

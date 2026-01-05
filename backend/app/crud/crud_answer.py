@@ -1,3 +1,10 @@
+"""
+Answer & Evaluation CRUD Operations
+
+Purpose:
+    Handles the submission of student answers and the retrieval of grading results.
+    Includes complex queries with multiple eager loads to support the detailed frontend views.
+"""
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -6,6 +13,13 @@ from app.models.answer import StudentAnswer, Evaluation
 from app.schemas.answer import ExamSubmission, StudentAnswerBase
 
 async def submit_exam(db: AsyncSession, submission: ExamSubmission, student_id: int) -> List[StudentAnswer]:
+    """
+    Handles a full exam submission.
+    Strategy:
+        1. Deletes any prior answers for this specific (Exam, Student) pair (overwrite policy).
+        2. Bulk inserts the new answers.
+        3. Returns the saved answers with relationships primed for display.
+    """
     # 1. Clear existing answers for this exam/student to allow re-submission
     # (or distinct latest submission)
     stmt = select(StudentAnswer).filter(
@@ -42,6 +56,7 @@ async def submit_exam(db: AsyncSession, submission: ExamSubmission, student_id: 
     return await get_student_answers(db, submission.exam_id, student_id)
 
 async def get_student_answers(db: AsyncSession, exam_id: int, student_id: int) -> List[StudentAnswer]:
+    """Retrieves all answers for a student in a specific exam, with evaluations eagerly loaded."""
     result = await db.execute(
         select(StudentAnswer)
         .options(
@@ -55,6 +70,7 @@ async def get_student_answers(db: AsyncSession, exam_id: int, student_id: int) -
     return result.scalars().all()
 
 async def get_all_exam_submissions(db: AsyncSession, exam_id: int) -> List[StudentAnswer]:
+    """Teacher View: Get ALL submissions for a specific exam from all students."""
     result = await db.execute(
         select(StudentAnswer)
         .options(
@@ -68,11 +84,14 @@ async def get_all_exam_submissions(db: AsyncSession, exam_id: int) -> List[Stude
     return result.scalars().all()
 
 async def save_evaluation(db: AsyncSession, evaluation: Evaluation) -> Evaluation:
+    """Persists a single Answer Evaluation (Grade + Feedback)."""
     db.add(evaluation)
     await db.commit()
     await db.refresh(evaluation)
     return evaluation
+
 async def get_student_history(db: AsyncSession, student_id: int) -> List[StudentAnswer]:
+    """Gets chronological history of all questions answered by a student across all exams."""
     result = await db.execute(
         select(StudentAnswer)
         .options(
@@ -86,6 +105,7 @@ async def get_student_history(db: AsyncSession, student_id: int) -> List[Student
     return result.scalars().all()
 
 async def request_review(db: AsyncSession, answer_id: int, student_comment: str):
+    """Flags a grade for teacher review."""
     stmt = select(Evaluation).where(Evaluation.answer_id == answer_id)
     result = await db.execute(stmt)
     evaluation = result.scalar_one_or_none()
@@ -98,6 +118,10 @@ async def request_review(db: AsyncSession, answer_id: int, student_comment: str)
     return evaluation
 
 async def update_manual_grade(db: AsyncSession, answer_id: int, marks: float, feedback: str):
+    """
+    Teacher overrides the AI grade.
+    Also clears the `review_requested` flag.
+    """
     stmt = select(Evaluation).where(Evaluation.answer_id == answer_id)
     result = await db.execute(stmt)
     evaluation = result.scalar_one_or_none()

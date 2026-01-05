@@ -29,7 +29,7 @@ export default function BulkUploadPage() {
     useEffect(() => {
         const fetchCourses = async () => {
             try {
-                const res = await api.get("/courses")
+                const res = await api.get("/courses/my-courses")
                 setCourses(res.data)
             } catch (error) {
                 console.error("Failed to load courses", error)

@@ -1,3 +1,10 @@
+"""
+Test Data Cleanup Script
+
+Purpose:
+    Bulk deletes exams with specific placeholder titles used during testing/seeding.
+    Titles: "Fresh Active Exam", "Fresh Upcoming Exam", "Long Duration Active Exam".
+"""
 import asyncio
 import os
 import sys
@@ -10,6 +17,9 @@ from app.db.session import AsyncSessionLocal
 from app.models.exam import Exam
 
 async def delete_test_exams():
+    """
+    Identifies and deletes widely used test exams.
+    """
     async with AsyncSessionLocal() as session:
         # Find exams with specific titles
         titles_to_delete = [

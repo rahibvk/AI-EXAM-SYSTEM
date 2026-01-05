@@ -1,3 +1,15 @@
+"""
+Answer Parser Service
+
+Purpose:
+    Segments raw OCR text (from handwritten pages) into structured answers mapped to Question IDs.
+    This is the "Understanding" layer between OCR (Vision) and Grading (Logic).
+
+Key logic:
+    - Uses GPT-4o to conceptually understand where one answer ends and the next begins.
+    - Handles implicit ordering (e.g., if student didn't number them, assume sequential).
+    - Robust JSON extraction to handle LLM output quirks.
+"""
 from typing import List, Dict
 import json
 from langchain_openai import ChatOpenAI
@@ -10,12 +22,18 @@ class AnswerParserService:
         """
         Analyzes the full text of an exam submission and maps segments to question IDs.
         
-        Args:
-            full_text: The entire OCR'd text from student's answer sheets.
-            questions: List of Question objects for the exam.
+        Inputs:
+            full_text: The entire OCR'd text from student's answer sheets via `ocr_service.py`.
+            questions: List of Question objects from the database (contains ID, text).
             
-        Returns:
-            Dictionary mapping Question ID (int) -> Answer Text (str)
+        Outputs:
+            Dictionary: {Question_ID (int) -> Answer_Text (str)}
+
+        Strategy:
+            1. Creates a summary of what questions exist ("Q1 (101): Explain Photosynthesis").
+            2. Feeds this + the raw text to the LLM.
+            3. LLM is instructed to find the text corresponding to Photosynthesis and map it to ID 101.
+            4. Regex extraction ensures valid JSON is returned even if LLM slightly hallucinates formatting.
         """
         
         # summary of questions for the prompt

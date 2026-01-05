@@ -1,3 +1,12 @@
+"""
+Add Manual Review Fields
+
+Purpose:
+    Updates the `evaluation` table to support the "Human-in-the-Loop" workflow.
+    - `review_requested`: Flag raised by AI (low confidence) or student.
+    - `student_comment`: Argument from student contesting the grade.
+    - `teacher_comment`: Final feedback from the teacher after manual review.
+"""
 """Add manual review fields
 
 Revision ID: 72cf4f597cf1

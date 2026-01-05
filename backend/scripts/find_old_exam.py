@@ -1,3 +1,10 @@
+"""
+Old Exam Finder
+
+Purpose:
+    Locates exams matching a specific date string in their title (e.g., '12/27/2025').
+    Used for ad-hoc cleanup or verification.
+"""
 import asyncio
 import sys
 import os
@@ -10,6 +17,7 @@ from app.models.exam import Exam
 from sqlalchemy import select
 
 async def find_exam():
+    """Queries DB for exams containing specific date string."""
     async with AsyncSessionLocal() as db:
         query = select(Exam).where(Exam.title.ilike("%12/27/2025%"))
         result = await db.execute(query)

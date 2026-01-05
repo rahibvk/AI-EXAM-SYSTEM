@@ -1,3 +1,14 @@
+"""
+Initial Data Seeder
+
+Purpose:
+    Bootstraps the database with default users for each role:
+    - Admin (admin@example.com)
+    - Teacher (teacher@example.com)
+    - Student (student@example.com)
+    
+    Should be run once after fresh DB creation.
+"""
 import asyncio
 import os
 import sys
@@ -10,6 +21,7 @@ from app.core.security import get_password_hash
 from app.models.user import User, UserRole
 
 async def seed_data():
+    """Seeds 3 default users."""
     async with SessionLocal() as db:
         # Create Admin
         admin = User(

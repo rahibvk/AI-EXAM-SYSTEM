@@ -1,3 +1,19 @@
+"""
+Bulk Grading Service
+
+Purpose:
+    Handles the end-to-end workflow of uploading, scanning (OCR), and grading bulk exam submissions.
+    This service is critical for processing handwritten exams uploaded by teachers.
+
+Key Assumptions:
+    - Input is a PDF or Image containing student handwriting.
+    - Student Name/ID is written clearly at the top of the first page.
+    - Questions are numbered or identifiable (handled by AnswerParser).
+
+Workflow:
+    1. process_bulk_upload(): Extracts text, finds student, and structured answers.
+    2. confirm_grading(): User confirms data -> Saves to DB -> Triggers Auto-Grading.
+"""
 import logging
 from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +39,22 @@ class BulkGradingService:
         file: UploadFile
     ) -> dict:
         """
+        Phase 1: Analysis - Reads the file and extracts preliminary data for review.
+
+        Inputs:
+            db: Database session.
+            exam_id: The exam being processed.
+            file: The uploaded PDF or Image file.
+
+        Outputs:
+            dict: Structured data containing the identified student and their parsed answers.
+                  Returns status="action_required" if student cannot be identified.
+
+        Side Effects:
+            - Performs OCR (expensive API call).
+            - Does NOT save to database yet (requires confirmation).
+        """
+        """
         Phase 1: Analyze file
         1. OCR -> Text
         2. Identify Student
@@ -40,7 +72,7 @@ class BulkGradingService:
                 with fitz.open(stream=content, filetype="pdf") as doc:
                     for page_num in range(len(doc)):
                         page = doc.load_page(page_num)
-                        # Increase resolution (zoom x2) for better OCR
+                        # Increase resolution (zoom x2) for better OCR accuracy
                         mat = fitz.Matrix(2, 2)
                         pix = page.get_pixmap(matrix=mat)
                         img_bytes = pix.tobytes("png")
@@ -101,6 +133,20 @@ class BulkGradingService:
         student_id: int,
         answers: dict
     ) -> dict:
+        """
+        Phase 2: Execution - Saves parsed answers and triggers ID-parallel grading.
+
+        Inputs:
+            student_id: Confirmed ID of the student (selected by teacher if auto-detect failed).
+            answers: Validated dictionary of {question_id: answer_text}.
+
+        Outputs:
+            dict: Final status and total score.
+
+        Side Effects:
+            - Writes StudentAnswer records to DB.
+            - Writes Evaluation records to DB.
+        """
         """
         Phase 2: Save & Evaluate (Parallelized)
         """
@@ -186,6 +232,13 @@ class BulkGradingService:
 
     @staticmethod
     async def _identify_student(db: AsyncSession, text: str, course_id: int) -> Optional[User]:
+        """
+        Uses LLM to attempt to find the student's identity from the OCR text.
+        
+        Strategy:
+            1. Extract Name/Email candidates from top of text.
+            2. Fuzzy match against the list of enrolled students.
+        """
         """
         Uses LLM to find the student name in the text, then fuzzy matches against DB students.
         """

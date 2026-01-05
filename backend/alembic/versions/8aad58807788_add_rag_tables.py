@@ -1,3 +1,11 @@
+"""
+Add RAG Tables for Course Material Chunking
+
+Purpose:
+    Creates the `course_material_chunk` table.
+    This table stores smaller chunks of course PDFs with their vector embeddings (or arrays),
+    enabling the RAG (Retrieval-Augmented Generation) system to find relevant context.
+"""
 """add_rag_tables
 
 Revision ID: 8aad58807788

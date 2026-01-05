@@ -1,7 +1,34 @@
-jabbar subair
+this is offline test exam
 
-ans 1. Poor diagram layout in BPMN diagrams significantly impacts readability and comprehension. Common issues include inconsistent sizes of icons representing the same type of elements, long and intersecting lines, and irregular gaps between elements. Such layouts can obscure the flow and logic of the process making it difficult for viewers to understand the intended business process. To improve this, best practices suggest maintaining uniform icon sizes, avoiding long and intersecting lines, and keeping consistent spacing between elements. These practices help in creating clear, concise, and easily readable diagrams, thereby enhancing comprehension and communication of the process.
+Duration: 60 Minutes
+Total Marks: 10 (Pass: 5)
 
-ans 2. Consistent naming in BPMN activities is crucial for clarity and effective communication of the process. Using noun-based activity names can lead to confusion as these names might suggest events or data objects rather than activities. Similarly, including conjunctions like 'and/or' in activity names can imply multiple activities within a single task, which complicates the understanding of the process. To adhere to naming best practices, names should use a strong verb plus a domain-specific noun, emphasizing the achievement of a discrete goal. Conjunctions should be avoided, and activities should be split into subsequent or alternative tasks if necessary. This approach ensures that each activity is clear and distinct, improving the overall comprehension of the BPMN diagram.
+Q1. [4 Marks]
+Explain the role of 'Lily Pad' and 'Pivot' in APT hacking terminology. How do they contribute to reaching the target asset?
+Ans1) KAUNAS
 
-ans 3. c
+Q2. [4 Marks]
+Discuss the significance of 'Social Omniscience' in the preparation phase of an APT attack.
+Ans2) SOCIAL ENGINEERING
+
+Q3. [1 Marks]
+Which of the following is NOT a phase in the APT Hacking Core Steps?
+
+Options:
+- Reconnaissance
+- Maintaining Access
+- Exfiltration
+- Encryption
+
+Ans3) Exfiltration
+
+Q4. [1 Marks]
+Identify the correct order of phases in an APT attack.
+
+Options:
+- Enumeration, Exploitation, Reconnaissance
+- Maintaining Access, Clean Up, Enumeration
+- Reconnaissance, Enumeration, Exploitation
+- Exfiltration, Clean Up, Progression
+
+Ans4) Maintaining Access, Cleanup, Enumeration

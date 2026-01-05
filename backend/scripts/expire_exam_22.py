@@ -1,3 +1,10 @@
+"""
+Force Expire Exam 22
+
+Purpose:
+    Specific utility to mark Exam ID 22 as expired (ended yesterday).
+    Used for testing the "Missed Exam" status logic on the frontend.
+"""
 import asyncio
 import os
 import sys
@@ -11,6 +18,9 @@ from app.db.session import AsyncSessionLocal
 from app.models.exam import Exam
 
 async def expire_exam_22():
+    """
+    Updates Exam 22 start/end times to the past.
+    """
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Exam).filter(Exam.id == 22))
         exam = result.scalars().first()

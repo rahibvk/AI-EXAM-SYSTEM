@@ -1,3 +1,19 @@
+"""
+Exam Generator Service
+
+Purpose:
+    Generates high-quality exam questions using Generative AI (LLM) and RAG (Retrieval-Augmented Generation).
+    It acts as an "AI Professor" that reads course materials and creates unique questions.
+
+Key Assumptions:
+    - Course materials are already chunked and embedded in the database (for RAG).
+    - OpenAI API key is configured and valid.
+    - If RAG fails or finds no context, it falls back to a "Mock" mode to ensure the user always gets a result.
+
+Links:
+    - Uses OpenAI GPT-4o for generation.
+    - Uses LangChain for prompt management.
+"""
 import json
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -24,6 +40,25 @@ class ExamGeneratorService:
         total_marks: float = 100,
         material_ids: list[int] = None
     ) -> list[QuestionCreate]:
+        """
+        Orchestrates the generation of exam questions.
+
+        Inputs:
+            db: Database session.
+            course_id: The course to generate questions for.
+            difficulty: "Easy", "Medium", "Hard".
+            subjective_count: Number of essay/text questions.
+            objective_count: Number of multiple-choice questions.
+            total_marks: Total score for the exam (e.g., 100).
+            material_ids: Optional list of specific documents to focus on.
+
+        Outputs:
+            list[QuestionCreate]: A list of question objects ready to be saved to the DB.
+
+        Side Effects:
+            - Calls external OpenAI API.
+            - Reads course materials and embeddings from DB.
+        """
         
         # 0. Mock Fallback Helper
         def get_mock_questions(count_subj, count_obj, available_materials=None):
@@ -182,6 +217,9 @@ class ExamGeneratorService:
         total_questions = subjective_count + objective_count
         
         # --- Integer Mark Distribution Algorithm ---
+        # The goal is to split 'total_marks' (e.g. 100) into integers across questions.
+        # We assign weights (Subjective=4x, Objective=1x) to determine relative value.
+        
         # 1. Determine base integer marks
         weight_subj = 4
         weight_obj = 1
@@ -199,10 +237,12 @@ class ExamGeneratorService:
         obj_marks_list = [score_obj] * objective_count
         
         # 3. Calculate current sum and difference
+        # Because of rounding, the sum might not equal total_marks exactly.
         current_sum = sum(subj_marks_list) + sum(obj_marks_list)
         diff = int(total_marks - current_sum)
         
         # 4. Distribute difference to Subjective questions first
+        # We greedily add/remove 1 point from questions until the diff is 0.
         if subjective_count > 0:
             # Distribute diff 1 by 1
             idx = 0
@@ -238,6 +278,7 @@ class ExamGeneratorService:
         obj_marks_str = ", ".join(map(str, obj_marks_list))
 
         # 2. Prompt Engineering
+        # We instruct the LLM to strictly follow the calculated mark distribution.
         system_prompt = f"""
         You are an expert professor designing a high-quality exam. Your task is to generate {total_questions} UNIQUE and DIVERSE questions using the course material.
 
@@ -323,3 +364,4 @@ class ExamGeneratorService:
             print(f"AI Generation Failed: {e}")
             print("Falling back to MOCK questions.")
             return get_mock_questions(subjective_count, objective_count, available_materials=materials)
+

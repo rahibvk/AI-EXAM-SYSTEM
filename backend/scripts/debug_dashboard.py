@@ -1,3 +1,11 @@
+"""
+Dashboard Logic Debugger
+
+Purpose:
+    Simulates the logic used by the Student/Teacher dashboard to determine Exam Status.
+    Classifies exams as ACTIVE, UPCOMING, or MISSED based on current server time.
+    Useful for verifying that start/end times are being interpreted correctly by the backend.
+"""
 import asyncio
 import os
 import sys
@@ -13,6 +21,9 @@ from app.models.exam import Exam
 from app.models.course import Course
 
 async def debug_dashboard():
+    """
+    Iterates through all courses and their exams, printing the calculated status.
+    """
     async with AsyncSessionLocal() as session:
         # 1. Fetch All Courses (simulating frontend /courses)
         result = await session.execute(select(Course))

@@ -1,3 +1,10 @@
+"""
+Exam & Question Schemas
+
+Purpose:
+    Defines the structure for Exam creation (via API or AI) and retrieval.
+    Includes nested models for creating Questions along with the Exam.
+"""
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
@@ -31,15 +38,18 @@ class ExamBase(BaseModel):
     passing_marks: Optional[float] = None
 
 class ExamCreate(ExamBase):
+    """Payload for creating an exam, optionally with initial questions."""
     questions: List[QuestionCreate] = []
 
 class ExamSummary(ExamBase):
+    """Simplified Exam view (no questions)."""
     id: int
     
     class Config:
         from_attributes = True
 
 class ExamResponse(ExamBase):
+    """Full Exam view including list of questions."""
     id: int
     questions: List[QuestionResponse] = []
     

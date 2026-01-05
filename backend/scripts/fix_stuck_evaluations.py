@@ -1,3 +1,14 @@
+"""
+Evaluation Recovery Script
+
+Purpose:
+    Identifies and fixes "stuck" evaluations (Student Answers with no corresponding Evaluation).
+    1. Scans for answers missing an evaluation.
+    2. RETRIES OCR if text is missing.
+    3. RETRIES AI Grading.
+    
+    This is critical for recovering from background task failures (e.g. server restart during grading).
+"""
 import asyncio
 import sys
 import os
@@ -19,6 +30,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 async def fix_stuck_evaluations():
+    """
+    Main recovery loop.
+    Scanning -> OCR -> AI Grading -> Save.
+    """
     print("Scanning for stuck evaluations...")
     async with AsyncSessionLocal() as db:
         # Find answers with NO evaluation using LEFT JOIN

@@ -1,3 +1,13 @@
+"""
+Course Management Endpoints
+
+Purpose:
+    Handles API operations for Courses, Materials (Uploads), and Student Enrollment.
+
+Key Features:
+    - **Material Upload**: Accepts file uploads, triggers text extraction, and initiates a background task (`process_rag_ingestion`) to chunk/embed the content for RAG.
+    - **Student Enrollment**: Allows teachers to manually enroll students via email.
+"""
 from typing import List, Any
 import os
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks

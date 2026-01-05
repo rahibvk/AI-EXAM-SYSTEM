@@ -1,10 +1,29 @@
+"""
+Evaluation Service
+
+Purpose:
+    Provides Automated Grading (Auto-Grading) for student answers using AI.
+    It acts as an "AI Examiner" that compares a student's answer against a model answer 
+    and assigns a score, feedback, and confidence level.
+
+Key Assumptions:
+    - The Model Answer provided by the Exam Generator is the "Ground Truth".
+    - The AI can reasonably interpret handwritten text (transcribed via OCR).
+    - It handles "Ambiguous" cases by requesting manual review instead of guessing.
+
+Constraints:
+    - Dependent on LLM latency.
+    - Consistency is handled by setting a low temperature (0.3).
+"""
 import json
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from app.models.answer import StudentAnswer, Evaluation
 
 # Initialize LLM
-llm = ChatOpenAI(model="gpt-4o", temperature=0.3) # Lower temp for grading consistency
+# Lower temperature (0.3) ensures the AI is more deterministic and consistent 
+# when grading the same answer multiple times.
+llm = ChatOpenAI(model="gpt-4o", temperature=0.3) 
 
 class EvaluationService:
     @staticmethod
@@ -15,6 +34,23 @@ class EvaluationService:
         max_marks: float,
         context_text: str = ""
     ) -> Evaluation:
+        """
+        Evaluates a single student answer against the model answer.
+
+        Inputs:
+            answer: The StudentAnswer object containing the student's text.
+            model_answer: The correct answer to compare against.
+            question_text: The original question.
+            max_marks: The maximum score possible for this question.
+            context_text: Optional extra context from course materials (rarely used).
+
+        Outputs:
+            Evaluation: An object containing marks_awarded, feedback, and metadata.
+
+        Edge Cases:
+            - If answer is empty or whitespace -> Returns 0 marks immediately.
+            - If answer is "Garbage" (random text) -> AI is instructed to give 0 marks.
+        """
         
         # 1. Pre-check: Empty Answer
         if not answer.answer_text or not answer.answer_text.strip():

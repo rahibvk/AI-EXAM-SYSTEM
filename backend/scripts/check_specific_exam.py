@@ -1,3 +1,10 @@
+"""
+Specific Exam Finder
+
+Purpose:
+    Searches for exams matching a specific title pattern (e.g., 'testextamnot').
+    Prints detailed attributes for each match.
+"""
 import asyncio
 import os
 import sys
@@ -10,6 +17,9 @@ from app.db.session import AsyncSessionLocal
 from app.models.exam import Exam
 
 async def check_specific_exam():
+    """
+    Queries DB for exams with 'testextamnot' in the title.
+    """
     async with AsyncSessionLocal() as session:
         # Check for 'testextamnot'
         result = await session.execute(

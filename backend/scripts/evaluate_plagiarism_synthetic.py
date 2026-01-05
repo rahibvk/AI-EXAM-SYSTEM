@@ -1,3 +1,12 @@
+"""
+Synthetic Plagiarism Evaluation Experiment
+
+Purpose:
+    A standalone script to test the effectiveness of the Plagiarism Detection Logic (string similarity).
+    Generates synthetic "positive" (plagiarized) and "negative" (distinct) pairs and calculates Precision/Recall.
+    
+    Used to fine-tune the similarity threshold.
+"""
 import difflib
 import random
 
@@ -5,6 +14,10 @@ def calculate_similarity(text1, text2):
     return difflib.SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
 
 def run_experiment():
+    """
+    Runs an evaluation loop with generated text pairs.
+    Prints classification metrics (Precision, Recall, F1).
+    """
     print("Running Synthetic Plagiarism Evaluation (n=60)...")
     
     # --- 1. Generate Positive Cases (Simulated Plagiarism) ---

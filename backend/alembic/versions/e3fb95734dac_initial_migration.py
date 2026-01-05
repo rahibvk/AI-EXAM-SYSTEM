@@ -1,3 +1,14 @@
+"""
+Initial Migration
+
+Partial Schema Creation:
+    - User (teacher/student/admin)
+    - Course & CourseMaterial
+    - Exam & Question
+    - StudentAnswer & Evaluation
+
+Note: This script establishes the baseline database structure.
+"""
 """Initial_migration
 
 Revision ID: e3fb95734dac

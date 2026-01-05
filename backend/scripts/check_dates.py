@@ -1,3 +1,10 @@
+"""
+Date Format & Timezone Checker
+
+Purpose:
+    A utility script to investigate how the backend handles and returns Date/Time objects.
+    Useful for debugging issues where exams appear "Missed" due to Timezone mismatches (UTC vs Local).
+"""
 import asyncio
 import httpx
 import sys
@@ -12,6 +19,9 @@ BASE_URL = "http://localhost:8000/api/v1"
 # or use the /exams/course/{id} endpoint to see the date format returned.
 
 async def check_date_format():
+    """
+    Attempts to fetch data to inspect raw JSON date strings.
+    """
     async with httpx.AsyncClient() as client:
         # 1. Fetch Request to see raw output format
         # We'll just hit a likely endpoint. If we don't have token, we might get 401.
@@ -37,6 +47,7 @@ async def check_date_format():
 # If end time was '22:42' (UTC), browser thinks it's 22:42 Local.
 # Real time 23:42.
 # Browser thinks "End time passed". -> Missed Exam.
+# Result: Active exam shows as Missed.
 # Result: Active exam shows as Missed.
 
 print("Analyzing Code for Timezone usage...")
