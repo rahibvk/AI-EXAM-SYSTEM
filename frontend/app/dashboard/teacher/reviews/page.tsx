@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import api from "@/lib/api"
-import { Loader2, MessageSquare, CheckCircle, Clock } from "lucide-react"
+import { Loader2, MessageSquare, CheckCircle, Clock, X, Paperclip } from "lucide-react"
 
 export default function TeacherReviewsPage() {
     const [loading, setLoading] = useState(true)
     const [reviews, setReviews] = useState<any[]>([])
 
-    // Manual Grade State (Copied logic from Exam Results)
+    // State for manual grading modal
     const [selectedAnswer, setSelectedAnswer] = useState<any>(null)
 
     const fetchReviews = async () => {
@@ -109,7 +109,9 @@ export default function TeacherReviewsPage() {
                     <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <h3 className="font-bold text-lg">Manual Grading</h3>
-                            <button onClick={() => setSelectedAnswer(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+                            <button onClick={() => setSelectedAnswer(null)} className="text-slate-400 hover:text-slate-600">
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
                         <div className="p-6 space-y-6">
 
@@ -125,7 +127,10 @@ export default function TeacherReviewsPage() {
                                     <div className="text-xs font-bold text-indigo-600 uppercase mb-1">Student Answer</div>
                                     <p className="text-sm">{selectedAnswer.answer_text}</p>
                                     {selectedAnswer.answer_file_path && (
-                                        <div className="mt-2 text-xs bg-slate-100 p-1 rounded inline-block">📎 Attachment Present</div>
+                                        <div className="mt-2 text-xs bg-slate-100 p-1 rounded inline-flex items-center gap-1">
+                                            <Paperclip className="w-3 h-3" />
+                                            Attachment Present
+                                        </div>
                                     )}
                                 </div>
 

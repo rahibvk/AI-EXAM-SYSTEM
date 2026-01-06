@@ -27,7 +27,7 @@ async def test_submit_endpoint():
             res = await client.get(f"{BASE_URL}/")
             print(f"Root '/': {res.status_code}")
         except Exception as e:
-            print(f"❌ Server is DOWN? {e}")
+            print(f"[ERROR] Server is DOWN? {e}")
             return
 
         # 2. Check OpenAPI Schema for route existence
@@ -39,11 +39,11 @@ async def test_submit_endpoint():
                 paths = schema.get("paths", {})
                 target_path = f"{API_V1}/submissions/submit"
                 if target_path in paths and 'post' in paths[target_path]:
-                    print(f"✅ Route Found in OpenAPI: {target_path} [POST]")
+                    print(f"[SUCCESS] Route Found in OpenAPI: {target_path} [POST]")
                 else:
-                    print(f"❌ Route MISSING in OpenAPI: {target_path}")
+                    print(f"[ERROR] Route MISSING in OpenAPI: {target_path}")
             else:
-                print(f"⚠️ Could not fetchopenapi.json: {res.status_code}")
+                print(f"[WARN] Could not fetch openapi.json: {res.status_code}")
         except Exception as e:
             print(f"Error fetching schema: {e}")
 
@@ -52,7 +52,7 @@ async def test_submit_endpoint():
         res = await client.post(f"{BASE_URL}{API_V1}/submissions/submit", json={})
         print(f"Status: {res.status_code}")
         if res.status_code == 404:
-            print("❌ Still 404 Not Found")
+            print("[ERROR] Still 404 Not Found")
         
 if __name__ == "__main__":
     try:

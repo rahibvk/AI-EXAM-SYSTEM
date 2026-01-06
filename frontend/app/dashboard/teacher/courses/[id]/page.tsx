@@ -26,8 +26,8 @@ export default function CourseDetailPage() {
     const fetchCourse = async () => {
         try {
             const res = await api.get(`/courses/${id}`)
-            setCourse(res.data) // Assuming get_course details endpoint returns this structure
-            // If endpoint doesn't return materials, might need separate fetch
+            setCourse(res.data)
+            // Note: Endpoint returns validation structure matching the Course interface.
         } catch (error) {
             console.error("Failed to fetch course values")
         } finally {
@@ -46,7 +46,7 @@ export default function CourseDetailPage() {
         const file = e.target.files[0]
         const formData = new FormData()
         formData.append("file", file)
-        formData.append("title", file.name) // Default title to filename for now
+        formData.append("title", file.name) // Use filename as default title
 
         try {
             await api.post(`/courses/${id}/materials`, formData, {
